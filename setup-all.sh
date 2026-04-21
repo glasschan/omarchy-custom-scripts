@@ -1,0 +1,282 @@
+#!/bin/bash
+
+# setup-all.sh
+# 主程式：設定所有 macOS 風格設定
+
+set -e
+
+SCRIPT_NAME="$(basename "$0")"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# 顏色輸出
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+info() {
+    echo -e "${GREEN}[INFO]${NC} $1"
+}
+
+warn() {
+    echo -e "${YELLOW}[WARN]${NC} $1"
+}
+
+error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+}
+
+detail() {
+    echo -e "${BLUE}[DETAIL]${NC} $1"
+}
+
+header() {
+    echo -e "${CYAN}========================================${NC}"
+    echo -e "${CYAN}$1${NC}"
+    echo -e "${CYAN}========================================${NC}"
+}
+
+# 檢查 script 是否存在
+check_script() {
+    [[ -f "$SCRIPT_DIR/$1" ]]
+}
+
+# 執行 script
+run_script() {
+    local script="$1"
+    local mode="${2:-}"
+    
+    if ! check_script "$script"; then
+        error "找不到 script: $script"
+        return 1
+    fi
+    
+    info "執行 $script..."
+    bash "$SCRIPT_DIR/$script" $mode
+}
+
+# 顯示選單
+show_menu() {
+    header "Omarchy macOS 風格設定工具"
+    echo ""
+    echo "請選擇要執行的操作:"
+    echo ""
+    echo "  ${GREEN}1${NC}. 安裝所有設定 (字體 + 輸入法 + macOS 輸入)"
+    echo "  ${GREEN}2${NC}. 安裝字體設定"
+    echo "  ${GREEN}3${NC}. 安裝輸入法設定 (fcitx5-rime + 快速倉頡)"
+    echo "  ${GREEN}4${NC}. 安裝 macOS 風格輸入設定"
+    echo "  ${GREEN}5${NC}. 還原所有設定"
+    echo "  ${GREEN}6${NC}. 還原字體設定"
+    echo "  ${GREEN}7${NC}. 還原輸入法設定"
+    echo "  ${GREEN}8${NC}. 還原 macOS 輸入設定"
+    echo "  ${GREEN}9${NC}. 顯示設定狀態"
+    echo "  ${GREEN}0${NC}. 離開"
+    echo ""
+}
+
+# 安裝所有設定
+install_all() {
+    header "安裝所有設定"
+    
+    run_script "setup-fonts.sh" "-i"
+    echo ""
+    
+    run_script "setup-input.sh" "-i"
+    echo ""
+    
+    run_script "setup-macos-input.sh" "-i"
+    echo ""
+    
+    header "所有設定安裝完成！"
+    echo ""
+    echo "請重新登入以確保所有設定生效。"
+}
+
+# 還原所有設定
+uninstall_all() {
+    header "還原所有設定"
+    
+    read -p "確定要還原所有設定嗎？ (y/N): " confirm
+    if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+        info "取消還原"
+        return 0
+    fi
+    
+    run_script "setup-macos-input.sh" "-u"
+    echo ""
+    
+    run_script "setup-input.sh" "-u"
+    echo ""
+    
+    run_script "setup-fonts.sh" "-u"
+    echo ""
+    
+    header "所有設定已還原！"
+}
+
+# 顯示設定狀態
+show_status() {
+    header "設定狀態"
+    
+    echo ""
+    echo "${CYAN}字體設定:${NC}"
+    if fc-list | grep -qi "MiSans" 2>/dev/null; then
+        echo "  ${GREEN}✓${NC} MiSans 字體已安裝"
+    else
+        echo "  ${RED}✗${NC} MiSans 字體未安裝"
+    fi
+    
+    local current_font
+    current_font=$(gsettings get org.gnome.desktop.interface font-name 2>/dev/null || echo "未設定")
+    echo "  目前字體: $current_font"
+    
+    echo ""
+    echo "${CYAN}Chromium 設定:${NC}"
+    if [[ -f "$HOME/.config/chromium-flags.conf" ]]; then
+        if grep -q "force-device-scale-factor=1" "$HOME/.config/chromium-flags.conf"; then
+            echo "  ${GREEN}✓${NC} Scale factor 已設為 1"
+        else
+            echo "  ${YELLOW}!${NC} Scale factor 未設定為 1"
+        fi
+    else
+        echo "  ${RED}✗${NC} Chromium flags 檔案不存在"
+    fi
+    
+    echo ""
+    echo "${CYAN}輸入法設定:${NC}"
+    if pacman -Q fcitx5-rime &>/dev/null; then
+        echo "  ${GREEN}✓${NC} fcitx5-rime 已安裝"
+    else
+        echo "  ${RED}✗${NC} fcitx5-rime 未安裝"
+    fi
+    
+    if [[ -f "$HOME/.local/share/fcitx5/rime/scj6.schema.yaml" ]]; then
+        echo "  ${GREEN}✓${NC} rime-scj 已安裝"
+    else
+        echo "  ${RED}✗${NC} rime-scj 未安裝"
+    fi
+    
+    if [[ -f "$HOME/.local/share/fcitx5/rime/default.custom.yaml" ]]; then
+        echo "  ${GREEN}✓${NC} default.custom.yaml 已設定"
+    else
+        echo "  ${RED}✗${NC} default.custom.yaml 未設定"
+    fi
+    
+    echo ""
+    echo "${CYAN}macOS 輸入設定:${NC}"
+    if [[ -f "$HOME/.config/hypr/input.conf" ]]; then
+        if grep -q "repeat_rate = 60" "$HOME/.config/hypr/input.conf"; then
+            echo "  ${GREEN}✓${NC} macOS 風格輸入已設定"
+        else
+            echo "  ${YELLOW}!${NC} macOS 風格輸入未設定"
+        fi
+    else
+        echo "  ${RED}✗${NC} input.conf 不存在"
+    fi
+    
+    echo ""
+}
+
+# 互動模式
+interactive_mode() {
+    while true; do
+        show_menu
+        read -p "請選擇 [0-9]: " choice
+        
+        case "$choice" in
+            1)
+                install_all
+                read -p "按 Enter 繼續..."
+                ;;
+            2)
+                run_script "setup-fonts.sh" "-i"
+                read -p "按 Enter 繼續..."
+                ;;
+            3)
+                run_script "setup-input.sh" "-i"
+                read -p "按 Enter 繼續..."
+                ;;
+            4)
+                run_script "setup-macos-input.sh" "-i"
+                read -p "按 Enter 繼續..."
+                ;;
+            5)
+                uninstall_all
+                read -p "按 Enter 繼續..."
+                ;;
+            6)
+                run_script "setup-fonts.sh" "-u"
+                read -p "按 Enter 繼續..."
+                ;;
+            7)
+                run_script "setup-input.sh" "-u"
+                read -p "按 Enter 繼續..."
+                ;;
+            8)
+                run_script "setup-macos-input.sh" "-u"
+                read -p "按 Enter 繼續..."
+                ;;
+            9)
+                show_status
+                read -p "按 Enter 繼續..."
+                ;;
+            0)
+                info "再見！"
+                exit 0
+                ;;
+            *)
+                error "無效選項: $choice"
+                sleep 1
+                ;;
+        esac
+        
+        echo ""
+    done
+}
+
+# 使用說明
+usage() {
+    echo "Usage: $SCRIPT_NAME [OPTION]"
+    echo ""
+    echo "Options:"
+    echo "  -i, --install     安裝所有設定 (預設)"
+    echo "  -u, --uninstall   還原所有設定"
+    echo "  -s, --status      顯示設定狀態"
+    echo "  -m, --menu        互動選單模式"
+    echo "  -h, --help        顯示此說明"
+    echo ""
+    echo "Examples:"
+    echo "  $SCRIPT_NAME              # 安裝所有設定"
+    echo "  $SCRIPT_NAME -u           # 還原所有設定"
+    echo "  $SCRIPT_NAME -m           # 互動選單模式"
+}
+
+# 主程式
+main() {
+    case "${1:-}" in
+        -u|--uninstall)
+            uninstall_all
+            ;;
+        -s|--status)
+            show_status
+            ;;
+        -m|--menu)
+            interactive_mode
+            ;;
+        -h|--help)
+            usage
+            ;;
+        -i|--install|"")
+            install_all
+            ;;
+        *)
+            error "未知選項: $1"
+            usage
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"
