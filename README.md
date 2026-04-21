@@ -7,6 +7,7 @@
 - **字體設定**: 自動設定 MiSans 字體、Chromium scale factor
 - **輸入法設定**: 安裝 fcitx5-rime + 快速倉頡 (rime-scj)
 - **macOS 輸入體驗**: 鍵盤重複率、自然捲動、輕觸點擊等
+- **Distrobox**: 安裝 distrobox + DistroShelf GUI，設定 `de` alias
 
 ## 安裝
 
@@ -36,6 +37,7 @@ cd omarchy-custom-scripts
 ./setup-fonts.sh        # 字體設定
 ./setup-input.sh        # 輸入法設定
 ./setup-macos-input.sh  # macOS 輸入體驗
+./setup-distrobox.sh    # Distrobox + DistroShelf
 ```
 
 ## 功能詳情
@@ -60,6 +62,12 @@ cd omarchy-custom-scripts
 - 輕觸點擊
 - 兩指右鍵
 - 打字時停用觸控板
+- 支援還原功能
+
+### setup-distrobox.sh
+- 安裝 distrobox (容器管理)
+- 安裝 distroshelf (GTK4 GUI 管理介面)
+- 設定 `de` alias (`de <container>` = `distrobox enter <container>`)
 - 支援還原功能
 
 ## 系統需求

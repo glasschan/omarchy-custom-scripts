@@ -63,15 +63,17 @@ show_menu() {
     echo ""
     echo "請選擇要執行的操作:"
     echo ""
-    echo "  ${GREEN}1${NC}. 安裝所有設定 (字體 + 輸入法 + macOS 輸入)"
+    echo "  ${GREEN}1${NC}. 安裝所有設定 (字體 + 輸入法 + macOS 輸入 + Distrobox)"
     echo "  ${GREEN}2${NC}. 安裝字體設定"
     echo "  ${GREEN}3${NC}. 安裝輸入法設定 (fcitx5-rime + 快速倉頡)"
     echo "  ${GREEN}4${NC}. 安裝 macOS 風格輸入設定"
-    echo "  ${GREEN}5${NC}. 還原所有設定"
-    echo "  ${GREEN}6${NC}. 還原字體設定"
-    echo "  ${GREEN}7${NC}. 還原輸入法設定"
-    echo "  ${GREEN}8${NC}. 還原 macOS 輸入設定"
-    echo "  ${GREEN}9${NC}. 顯示設定狀態"
+    echo "  ${GREEN}5${NC}. 安裝 Distrobox + DistroShelf"
+    echo "  ${GREEN}6${NC}. 還原所有設定"
+    echo "  ${GREEN}7${NC}. 還原字體設定"
+    echo "  ${GREEN}8${NC}. 還原輸入法設定"
+    echo "  ${GREEN}9${NC}. 還原 macOS 輸入設定"
+    echo "  ${GREEN}10${NC}. 還原 Distrobox 設定"
+    echo "  ${GREEN}11${NC}. 顯示設定狀態"
     echo "  ${GREEN}0${NC}. 離開"
     echo ""
 }
@@ -87,6 +89,9 @@ install_all() {
     echo ""
     
     run_script "setup-macos-input.sh" "-i"
+    echo ""
+    
+    run_script "setup-distrobox.sh" "-i"
     echo ""
     
     header "所有設定安裝完成！"
@@ -108,6 +113,9 @@ uninstall_all() {
     echo ""
     
     run_script "setup-input.sh" "-u"
+    echo ""
+    
+    run_script "setup-distrobox.sh" "-u"
     echo ""
     
     run_script "setup-fonts.sh" "-u"
@@ -177,13 +185,33 @@ show_status() {
     fi
     
     echo ""
+    echo "${CYAN}Distrobox 設定:${NC}"
+    if pacman -Q distrobox &>/dev/null; then
+        echo "  ${GREEN}✓${NC} distrobox 已安裝"
+    else
+        echo "  ${RED}✗${NC} distrobox 未安裝"
+    fi
+    
+    if pacman -Q distroshelf &>/dev/null || pacman -Q distroshelf-git &>/dev/null; then
+        echo "  ${GREEN}✓${NC} distroshelf 已安裝"
+    else
+        echo "  ${RED}✗${NC} distroshelf 未安裝"
+    fi
+    
+    if grep -q "alias de='distrobox enter'" "$HOME/.bashrc" 2>/dev/null; then
+        echo "  ${GREEN}✓${NC} alias 'de' 已設定"
+    else
+        echo "  ${RED}✗${NC} alias 'de' 未設定"
+    fi
+    
+    echo ""
 }
 
 # 互動模式
 interactive_mode() {
     while true; do
         show_menu
-        read -p "請選擇 [0-9]: " choice
+        read -p "請選擇 [0-11]: " choice
         
         case "$choice" in
             1)
@@ -203,22 +231,30 @@ interactive_mode() {
                 read -p "按 Enter 繼續..."
                 ;;
             5)
-                uninstall_all
+                run_script "setup-distrobox.sh" "-i"
                 read -p "按 Enter 繼續..."
                 ;;
             6)
-                run_script "setup-fonts.sh" "-u"
+                uninstall_all
                 read -p "按 Enter 繼續..."
                 ;;
             7)
-                run_script "setup-input.sh" "-u"
+                run_script "setup-fonts.sh" "-u"
                 read -p "按 Enter 繼續..."
                 ;;
             8)
-                run_script "setup-macos-input.sh" "-u"
+                run_script "setup-input.sh" "-u"
                 read -p "按 Enter 繼續..."
                 ;;
             9)
+                run_script "setup-macos-input.sh" "-u"
+                read -p "按 Enter 繼續..."
+                ;;
+            10)
+                run_script "setup-distrobox.sh" "-u"
+                read -p "按 Enter 繼續..."
+                ;;
+            11)
                 show_status
                 read -p "按 Enter 繼續..."
                 ;;
