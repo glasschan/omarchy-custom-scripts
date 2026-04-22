@@ -12,6 +12,7 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
+CYAN='\033[0;36m'
 NC='\033[0m'
 
 info() {
@@ -30,29 +31,23 @@ detail() {
     echo -e "${BLUE}[DETAIL]${NC} $1"
 }
 
-find_builtin_keyboard() {
-    local keyboards
-    keyboards=$(hyprctl devices 2>/dev/null | awk '
+list_keyboards() {
+    hyprctl devices 2>/dev/null | awk '
 /^[[:space:]]*Keyboard at/ {
-    do { getline; } while (/^$/ || /^[[:space:]]*$/)
+    device_line = $0
+    getline
     gsub(/^[[:space:]]+|[[:space:]]+$/, "")
-    print
-}')
-
-    local builtin_kb=""
-    while IFS= read -r name; do
-        [[ -z "$name" ]] && continue
-        local lname="${name,,}"
-        if [[ "$lname" =~ (video-bus|power-button|hotkeys|virtual-keyboard) ]]; then
-            continue
-        fi
-        if [[ ! "$lname" =~ (receiver|usb|bluetooth|wireless|logitech|microsoft|apple) ]]; then
-            builtin_kb="$name"
-            break
-        fi
-    done <<< "$keyboards"
-
-    echo "$builtin_kb"
+    name = $0
+    is_builtin = 0
+    lname = tolower(name)
+    if (lname ~ /video-bus|power-button|hotkeys|virtual-keyboard/) {
+        skip = 1
+    }
+    if (lname !~ /receiver|usb|bluetooth|wireless|logitech|microsoft|apple/) {
+        is_builtin = 1
+    }
+    printf "%s|%d\n", name, is_builtin
+}'
 }
 
 check_swap_configured() {
@@ -62,37 +57,67 @@ check_swap_configured() {
     grep -q "altwin:swap_alt_win" "$INPUT_CONF"
 }
 
+get_swap_keyboard_name() {
+    if [[ -f "$INPUT_CONF" ]]; then
+        grep -A1 "device {" "$INPUT_CONF" | grep "name =" | sed 's/.*name = //;s/"//g'
+    fi
+}
+
 install() {
-    info "請確保已移除所有外接鍵盤，只保留內建鍵盤"
-    read -p "準備好後按 Enter 繼續..."
+    info "建議移除外接鍵盤，只保留內建鍵盤"
+    echo ""
 
-    local builtin_kb
-    builtin_kb=$(find_builtin_keyboard)
+    local keyboards
+    mapfile -t keyboard_lines < <(list_keyboards)
 
-    if [[ -z "$builtin_kb" ]]; then
-        error "找不到內建鍵盤，請確認只有一個鍵盤連接"
+    if [[ ${#keyboard_lines[@]} -eq 0 ]]; then
+        error "找不到任何鍵盤"
         return 1
     fi
 
-    info "找到內建鍵盤: $builtin_kb"
+    info "偵測到的鍵盤："
+    local choices=()
+    local builtin_idx=1
+    local idx=1
+    for line in "${keyboard_lines[@]}"; do
+        local name is_builtin
+        name="${line%|*}"
+        is_builtin="${line##*|}"
 
-    local count
-    count=$(echo "$builtin_kb" | grep -c .)
-    if [[ $count -gt 1 ]]; then
-        error "偵測到多個可能的內建鍵盤，請移除外接鍵盤後重試"
+        local label="外接鍵盤"
+        if [[ "$is_builtin" == "1" ]]; then
+            label="內建鍵盤"
+            builtin_idx=$idx
+        fi
+
+        echo -e "  ${CYAN}$idx${NC}. $name (${label})"
+        choices+=("$name")
+        ((idx++))
+    done
+    echo ""
+
+    local default_choice=$builtin_idx
+    read -p "選擇鍵盤 [${default_choice}]: " choice
+    choice="${choice:-$default_choice}"
+
+    if [[ -z "$choice" || "$choice" -lt 1 || "$choice" -gt ${#choices[@]} ]]; then
+        error "無效選擇: $choice"
         return 1
     fi
 
-    info "移除舊的 Swap 設定（所有 Swap device 區塊）..."
+    local selected_kb="${choices[$((choice-1))]}"
+
+    info "移除舊的 Swap 設定..."
     sed -i '/^device {/,/^}/d' "$INPUT_CONF"
+    sed -i '/^$/d' "$INPUT_CONF"
 
     info "寫入鍵盤 Swap 設定..."
 
     cat >> "$INPUT_CONF" << EOF
 
 device {
-    name = "$builtin_kb"
-    kb_options = "altwin:swap_alt_win"
+    name = $selected_kb
+    kb_options = altwin:swap_alt_win
 }
 EOF
 
@@ -123,7 +148,7 @@ uninstall() {
     fi
 
     sed -i '/device {/,/^}/{/altwin:swap_alt_win/d}' "$INPUT_CONF"
-    sed -i '/^[[:space:]]*$/d' "$INPUT_CONF"
+    sed -i '/^$/d' "$INPUT_CONF"
 
     if command -v hyprctl &>/dev/null; then
         hyprctl reload 2>/dev/null && info "Hyprland 設定已重新載入" || warn "請手動執行 hyprctl reload"

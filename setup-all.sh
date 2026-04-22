@@ -175,6 +175,16 @@ show_status() {
         echo -e "  ${RED}✗${NC} default.custom.yaml 未設定"
     fi
 
+    if [[ -f "$HOME/.local/share/fcitx5/rime/scj6.custom.yaml" ]]; then
+        if grep -q "reset: 1" "$HOME/.local/share/fcitx5/rime/scj6.custom.yaml"; then
+            echo -e "  ${GREEN}✓${NC} scj6 預設英文模式已設定"
+        else
+            echo -e "  ${YELLOW}!${NC} scj6 預設英文模式未設定"
+        fi
+    else
+        echo -e "  ${RED}✗${NC} scj6.custom.yaml 不存在"
+    fi
+
     echo ""
     echo -e "${CYAN}macOS 輸入設定:${NC}"
     if [[ -f "$HOME/.config/hypr/input.conf" ]]; then
@@ -185,6 +195,10 @@ show_status() {
         fi
     else
         echo -e "  ${RED}✗${NC} input.conf 不存在"
+    fi
+
+    if grep -q "altwin:swap_alt_win" "$HOME/.config/hypr/input.conf" 2>/dev/null; then
+        echo -e "  ${GREEN}✓${NC} 鍵盤 Swap 已設定"
     fi
 
     echo ""

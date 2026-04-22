@@ -207,30 +207,27 @@ redeploy_rime() {
 
     rm -rf "$RIME_DIR/build"
 
-    info "設定 rime 為唯一輸入法..."
-    mkdir -p "$HOME/.config/fcitx5"
+    if pgrep -x "fcitx5" > /dev/null; then
+        info "停止 fcitx5..."
+        killall fcitx5 2>/dev/null || true
+        sleep 1
+    fi
 
-    cat > "$HOME/.config/fcitx5/profile" << 'EOF'
-[Groups/0]
-# Group Name
-Name=Default
-# Layout
-Default Layout=us
-# Default Input Method
-DefaultIM=rime
+    info "啟動 fcitx5 並等待部署完成..."
+    fcitx5 -d &
+    sleep 1
 
-[Groups/0/Items/0]
-# Name
-Name=rime
-# Layout
-Layout=
+    local count=0
+    while [[ $count -lt 10 ]]; do
+        if [[ -d "$RIME_DIR/build" ]] && [[ -f "$RIME_DIR/build/scj6.schema.yaml" ]]; then
+            info "Rime 部署完成"
+            return 0
+        fi
+        sleep 1
+        ((count++))
+    done
 
-[GroupOrder]
-0=Default
-EOF
-
-    info "已清除編譯檔案並設定 rime 為唯一輸入法"
-    info "請重啟 fcitx5 以完成部署"
+    warn "等待 Rime 部署超時，請手動重啟 fcitx5"
 }
 
 # 安裝模式
