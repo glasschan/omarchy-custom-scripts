@@ -130,83 +130,83 @@ uninstall_all() {
 # 顯示設定狀態
 show_status() {
     header "設定狀態"
-    
+
     echo ""
-    echo "${CYAN}字體設定:${NC}"
+    echo -e "${CYAN}字體設定:${NC}"
     if fc-list | grep -qi "MiSans" 2>/dev/null; then
-        echo "  ${GREEN}✓${NC} MiSans 字體已安裝"
+        echo -e "  ${GREEN}✓${NC} MiSans 字體已安裝"
     else
-        echo "  ${RED}✗${NC} MiSans 字體未安裝"
+        echo -e "  ${RED}✗${NC} MiSans 字體未安裝"
     fi
-    
+
     local current_font
     current_font=$(gsettings get org.gnome.desktop.interface font-name 2>/dev/null || echo "未設定")
-    echo "  目前字體: $current_font"
-    
+    echo -e "  目前字體: $current_font"
+
     echo ""
-    echo "${CYAN}Chromium 設定:${NC}"
+    echo -e "${CYAN}Chromium 設定:${NC}"
     if [[ -f "$HOME/.config/chromium-flags.conf" ]]; then
         if grep -q "force-device-scale-factor=1" "$HOME/.config/chromium-flags.conf"; then
-            echo "  ${GREEN}✓${NC} Scale factor 已設為 1"
+            echo -e "  ${GREEN}✓${NC} Scale factor 已設為 1"
         else
-            echo "  ${YELLOW}!${NC} Scale factor 未設定為 1"
+            echo -e "  ${YELLOW}!${NC} Scale factor 未設定為 1"
         fi
     else
-        echo "  ${RED}✗${NC} Chromium flags 檔案不存在"
+        echo -e "  ${RED}✗${NC} Chromium flags 檔案不存在"
     fi
-    
+
     echo ""
-    echo "${CYAN}輸入法設定:${NC}"
+    echo -e "${CYAN}輸入法設定:${NC}"
     if pacman -Q fcitx5-rime &>/dev/null; then
-        echo "  ${GREEN}✓${NC} fcitx5-rime 已安裝"
+        echo -e "  ${GREEN}✓${NC} fcitx5-rime 已安裝"
     else
-        echo "  ${RED}✗${NC} fcitx5-rime 未安裝"
+        echo -e "  ${RED}✗${NC} fcitx5-rime 未安裝"
     fi
-    
+
     if [[ -f "$HOME/.local/share/fcitx5/rime/scj6.schema.yaml" ]]; then
-        echo "  ${GREEN}✓${NC} rime-scj 已安裝"
+        echo -e "  ${GREEN}✓${NC} rime-scj 已安裝"
     else
-        echo "  ${RED}✗${NC} rime-scj 未安裝"
+        echo -e "  ${RED}✗${NC} rime-scj 未安裝"
     fi
-    
+
     if [[ -f "$HOME/.local/share/fcitx5/rime/default.custom.yaml" ]]; then
-        echo "  ${GREEN}✓${NC} default.custom.yaml 已設定"
+        echo -e "  ${GREEN}✓${NC} default.custom.yaml 已設定"
     else
-        echo "  ${RED}✗${NC} default.custom.yaml 未設定"
+        echo -e "  ${RED}✗${NC} default.custom.yaml 未設定"
     fi
-    
+
     echo ""
-    echo "${CYAN}macOS 輸入設定:${NC}"
+    echo -e "${CYAN}macOS 輸入設定:${NC}"
     if [[ -f "$HOME/.config/hypr/input.conf" ]]; then
         if grep -q "repeat_rate = 60" "$HOME/.config/hypr/input.conf"; then
-            echo "  ${GREEN}✓${NC} macOS 風格輸入已設定"
+            echo -e "  ${GREEN}✓${NC} macOS 風格輸入已設定"
         else
-            echo "  ${YELLOW}!${NC} macOS 風格輸入未設定"
+            echo -e "  ${YELLOW}!${NC} macOS 風格輸入未設定"
         fi
     else
-        echo "  ${RED}✗${NC} input.conf 不存在"
+        echo -e "  ${RED}✗${NC} input.conf 不存在"
     fi
-    
+
     echo ""
-    echo "${CYAN}Distrobox 設定:${NC}"
+    echo -e "${CYAN}Distrobox 設定:${NC}"
     if pacman -Q distrobox &>/dev/null; then
-        echo "  ${GREEN}✓${NC} distrobox 已安裝"
+        echo -e "  ${GREEN}✓${NC} distrobox 已安裝"
     else
-        echo "  ${RED}✗${NC} distrobox 未安裝"
+        echo -e "  ${RED}✗${NC} distrobox 未安裝"
     fi
-    
+
     if pacman -Q distroshelf &>/dev/null || pacman -Q distroshelf-git &>/dev/null; then
-        echo "  ${GREEN}✓${NC} distroshelf 已安裝"
+        echo -e "  ${GREEN}✓${NC} distroshelf 已安裝"
     else
-        echo "  ${RED}✗${NC} distroshelf 未安裝"
+        echo -e "  ${RED}✗${NC} distroshelf 未安裝"
     fi
-    
+
     if grep -q "alias de='distrobox enter'" "$HOME/.bashrc" 2>/dev/null; then
-        echo "  ${GREEN}✓${NC} alias 'de' 已設定"
+        echo -e "  ${GREEN}✓${NC} alias 'de' 已設定"
     else
-        echo "  ${RED}✗${NC} alias 'de' 未設定"
+        echo -e "  ${RED}✗${NC} alias 'de' 未設定"
     fi
-    
+
     echo ""
 }
 

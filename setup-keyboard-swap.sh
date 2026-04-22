@@ -32,12 +32,20 @@ detail() {
 
 find_builtin_keyboard() {
     local keyboards
-    keyboards=$(hyprctl devices 2>/dev/null | grep "Keyboard at" | grep -oP '(?<=at ).*(?=:)')
+    keyboards=$(hyprctl devices 2>/dev/null | awk '
+/^[[:space:]]*Keyboard at/ {
+    do { getline; } while (/^$/ || /^[[:space:]]*$/)
+    gsub(/^[[:space:]]+|[[:space:]]+$/, "")
+    print
+}')
 
     local builtin_kb=""
     while IFS= read -r name; do
         [[ -z "$name" ]] && continue
         local lname="${name,,}"
+        if [[ "$lname" =~ (video-bus|power-button|hotkeys|virtual-keyboard) ]]; then
+            continue
+        fi
         if [[ ! "$lname" =~ (receiver|usb|bluetooth|wireless|logitech|microsoft|apple) ]]; then
             builtin_kb="$name"
             break
@@ -75,10 +83,8 @@ install() {
         return 1
     fi
 
-    if check_swap_configured; then
-        info "Swap 設定已存在，跳過"
-        return 0
-    fi
+    info "移除舊的 Swap 設定（所有 Swap device 區塊）..."
+    sed -i '/^device {/,/^}/d' "$INPUT_CONF"
 
     info "寫入鍵盤 Swap 設定..."
 
