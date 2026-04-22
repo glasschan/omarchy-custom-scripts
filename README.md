@@ -17,6 +17,7 @@
 | `setup-fonts.sh` | 字體 + Chromium scale |
 | `setup-input.sh` | fcitx5-rime + 快速倉頡 |
 | `setup-macos-input.sh` | 鍵盤/觸控板 macOS 行為 |
+| `setup-keyboard-swap.sh` | 交換內建鍵盤 Super/Alt (Optional) |
 | `setup-distrobox.sh` | Distrobox + DistroShelf |
 
 ## 快速開始
@@ -82,6 +83,17 @@
 - **`de` alias**
   - 為什麼：`de ubuntu` 比 `distrobox enter ubuntu` 少打很多字
 
+### setup-keyboard-swap.sh — 鍵盤按鍵交換 (Optional)
+
+**目標：** 將 Laptop 內建鍵盤的 Super 和 Alt 交換，適合外接鍵盤用 Mac 配置的使用者
+
+- **交換時機**：需要外接鍵盤使用 Mac 配置（Cmd=Alt, Alt=Super）但又不想要打擾內建鍵盤
+- **實作方式**：透過 Hyprland 的 per-device XKB options，只針對內建鍵盤應用 `altwin:swap_alt_win`
+- **前提條件**：執行前需移除所有外接鍵盤，讓 script 能正確識別內建鍵盤
+- **Swap 效果**：
+  - Alt 鍵 → 變成 Super 鍵（可拉視窗選單、Super+數字切換workspace）
+  - Super 鍵 → 變成 Alt 鍵（可當 Ctrl+Alt+T 之類的組合鍵）
+
 ## 支援的作業系統
 
 - Omarchy Linux (Arch-based)
@@ -92,11 +104,12 @@
 
 ```
 .
-├── setup-all.sh          # 主程式，選單整合所有腳本
-├── setup-fonts.sh        # 字體設定
-├── setup-input.sh        # 輸入法設定
-├── setup-macos-input.sh  # 鍵盤/觸控板設定
-└── setup-distrobox.sh    # Distrobox 設定
+├── setup-all.sh             # 主程式，選單整合所有腳本
+├── setup-fonts.sh           # 字體設定
+├── setup-input.sh           # 輸入法設定
+├── setup-macos-input.sh    # 鍵盤/觸控板設定
+├── setup-keyboard-swap.sh   # 交換內建鍵盤 Super/Alt (Optional)
+└── setup-distrobox.sh       # Distrobox 設定
 ```
 
 ## 授權
