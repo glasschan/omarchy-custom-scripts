@@ -61,13 +61,13 @@ setup_elephant_clipboard() {
 
     if [ ! -f "$CLIPBOARD_CONFIG" ]; then
         info "建立新的 clipboard.toml..."
-        cat > "$CLIPBOARD_CONFIG" << 'EOF'
+cat > "$CLIPBOARD_CONFIG" << 'EOF'
 auto_cleanup = 0
 command = "wl-copy && sleep 0.2 && wtype -M shift -k Insert -m shift"
 ignore_symbols = true
 image_editor_cmd = ''
 max_items = 100
-pinned_on_top = false
+pinned_on_top = true
 text_editor_cmd = ''
 
 [Config]
@@ -82,6 +82,11 @@ EOF
             sed -i 's/^command\s*=.*$/command = "wl-copy && sleep 0.2 && wtype -M shift -k Insert -m shift"/' "$CLIPBOARD_CONFIG"
         else
             echo 'command = "wl-copy && sleep 0.2 && wtype -M shift -k Insert -m shift"' >> "$CLIPBOARD_CONFIG"
+        fi
+        if grep -q '^pinned_on_top\s*=' "$CLIPBOARD_CONFIG"; then
+            sed -i 's/^pinned_on_top\s*=.*$/pinned_on_top = true/' "$CLIPBOARD_CONFIG"
+        else
+            echo 'pinned_on_top = true' >> "$CLIPBOARD_CONFIG"
         fi
     fi
 
@@ -106,7 +111,7 @@ setup_hypr_keybindings() {
     fi
 
     # 在檔案末尾加入快捷鍵
-    cat >> "$HYPR_BINDINGS" << 'EOF'
+cat >> "$HYPR_BINDINGS" << 'EOF'
 
 # Custom screenshot and screen recording bindings
 bindd = ALT SHIFT, Q, Screenshot (region), exec, omarchy-cmd-screenshot region
@@ -188,7 +193,7 @@ main() {
 
             echo
             info "=============================="
-            info "設定完成！"
+            info "設定完成!"
             info "=============================="
             echo
             echo "新增的快捷鍵："
@@ -200,6 +205,7 @@ main() {
             echo '  CTRL + `           → 開啟剪貼簿管理員'
             echo
             echo "自動貼上已啟用：選取項目後會自動複製並貼上 (使用 Shift+Insert)"
+            echo "Pin 功能已開啟：釘選項目會固定在列表頂部"
             echo
             ;;
         *)
