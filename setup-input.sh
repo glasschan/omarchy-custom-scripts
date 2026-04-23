@@ -55,10 +55,38 @@ check_scj6_custom() {
 check_default_custom() {
     if [[ -f "$RIME_DIR/default.custom.yaml" ]]; then
         grep -q "schema: scj6" "$RIME_DIR/default.custom.yaml" && \
-        grep -q "schema: cangjie5" "$RIME_DIR/default.custom.yaml"
+        grep -q "schema: cangjie5" "$RIME_DIR/default.custom.yaml" && \
+        grep -q "ascii_composer" "$RIME_DIR/default.custom.yaml" && \
+        grep -q "switcher" "$RIME_DIR/default.custom.yaml"
     else
         return 1
     fi
+}
+
+# 檢查 fcitx5 config 中的 AltTriggerKeys 是否綁定 Shift_L
+check_fcitx5_alttrigger() {
+    local fcitx5_config="$HOME/.config/fcitx5/config"
+    if [[ -f "$fcitx5_config" ]]; then
+        grep -A 1 "^\[Hotkey/AltTriggerKeys\]" "$fcitx5_config" 2>/dev/null | grep -q "Shift_L"
+    else
+        return 1
+    fi
+}
+
+# 移除 fcitx5 config 中 AltTriggerKeys 的 Shift_L
+setup_fcitx5_alttrigger() {
+    info "檢查 fcitx5 AltTriggerKeys 設定..."
+    
+    if ! check_fcitx5_alttrigger; then
+        info "fcitx5 AltTriggerKeys 未綁定 Shift_L，跳過"
+        return 0
+    fi
+    
+    info "移除 fcitx5 AltTriggerKeys 的 Shift_L 綁定..."
+    local fcitx5_config="$HOME/.config/fcitx5/config"
+    sed -i '/^\[Hotkey\/AltTriggerKeys\]$/,/^\[/{/^0=Shift_L$/d}' "$fcitx5_config"
+    
+    info "fcitx5 AltTriggerKeys Shift_L 已移除"
 }
 
 # 安裝套件（如果需要）
@@ -173,6 +201,7 @@ patch:
   schema_list:
     - schema: scj6
     - schema: cangjie5
+    - schema: luna_pinyin
   menu:
     page_size: 5
   switcher:
@@ -235,6 +264,7 @@ install() {
     info "開始設定 fcitx5-rime + 快速倉頡..."
     
     local need_redeploy=false
+    local need_fcitx5_restart=false
     
     if ! check_package "fcitx5-rime"; then
         setup_fcitx5_rime
@@ -260,8 +290,22 @@ install() {
         need_redeploy=true
     fi
     
+    if check_fcitx5_alttrigger; then
+        setup_fcitx5_alttrigger
+        need_fcitx5_restart=true
+    fi
+    
     if $need_redeploy; then
         redeploy_rime
+    elif $need_fcitx5_restart; then
+        info "重新啟動 fcitx5 以套用設定..."
+        if pgrep -x "fcitx5" > /dev/null; then
+            killall fcitx5 2>/dev/null || true
+            sleep 1
+        fi
+        fcitx5 -d &
+        sleep 1
+        info "fcitx5 已重新啟動"
     else
         info "所有設定已完成，無需重新部署"
     fi
@@ -271,8 +315,10 @@ install() {
     info "快捷鍵："
     info "  - F4: 切換輸入法方案"
     info "  - 右 Shift: 切換中英文"
+    info "  - 左 Shift: 不會觸發中英文切換"
     info "  - 快速倉頡 (scj6): 已設定為預設，啟動時為英文模式"
     info "  - 倉頡五代 (cangjie5): 已加入方案列表"
+    info "  - 朙月拼音 (luna_pinyin): 已加入方案列表"
 }
 
 # 解除安裝模式
