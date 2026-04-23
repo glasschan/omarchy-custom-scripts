@@ -61,25 +61,27 @@ run_script() {
 show_menu() {
     header "Glass Omarchy 自訂工具箱"
     echo -e ""
-    echo -e "\033[1;34m▼ 安裝設定\033[0m"
-    echo -e "  \033[0;32m1\033[0m. 安裝所有設定 (字體 + 輸入法 + macOS 輸入 + Distrobox + 快捷鍵)"
-    echo -e "  \033[0;32m2\033[0m. 安裝字體設定"
-    echo -e "  \033[0;32m3\033[0m. 安裝輸入法設定 (fcitx5-rime + 快速倉頡)"
-    echo -e "  \033[0;32m4\033[0m. 安裝 macOS 風格輸入設定"
-    echo -e "  \033[0;32m5\033[0m. 安裝 Distrobox + DistroShelf"
-    echo -e "  \033[0;32m6\033[0m. 安裝自訂快捷鍵 (截圖/錄影/剪貼簿)"
-    echo -e "  \033[0;32m7\033[0m. 交換內建鍵盤 Super/Alt (Optional)"
-    echo -e ""
-    echo -e "\033[1;34m▼ 還原與其他\033[0m"
-    echo -e "  \033[0;32m8\033[0m. 還原所有設定"
-    echo -e "  \033[0;32m9\033[0m. 還原字體設定"
-    echo -e "  \033[0;32m10\033[0m. 還原輸入法設定"
-    echo -e "  \033[0;32m11\033[0m. 還原 macOS 輸入設定"
-    echo -e "  \033[0;32m12\033[0m. 還原自訂快捷鍵"
-    echo -e "  \033[0;32m13\033[0m. 還原鍵盤 Swap 設定"
-    echo -e "  \033[0;32m14\033[0m. 還原 Distrobox 設定"
-    echo -e "  \033[0;32m15\033[0m. 顯示設定狀態"
-    echo -e "  \033[0;32m0\033[0m. 離開"
+echo -e "\033[1;34m▼ 安裝設定\033[0m"
+echo -e "  \033[0;32m1\033[0m. 安裝所有設定 (字體 + 輸入法 + macOS 輸入 + Distrobox + 快捷鍵)"
+echo -e "  \033[0;32m2\033[0m. 安裝字體設定"
+echo -e "  \033[0;32m3\033[0m. 安裝輸入法設定 (fcitx5-rime + 快速倉頡)"
+echo -e "  \033[0;32m4\033[0m. 安裝 macOS 風格輸入設定"
+echo -e "  \033[0;32m5\033[0m. 安裝 Distrobox + DistroShelf"
+echo -e "  \033[0;32m6\033[0m. 安裝自訂快捷鍵 (截圖/錄影/剪貼簿)"
+echo -e "  \033[0;32m7\033[0m. 交換內建鍵盤 Super/Alt (Optional)"
+echo -e "  \033[0;32m8\033[0m. 修復 Chrome keyring 密碼彈窗"
+echo -e ""
+echo -e "\033[1;34m▼ 還原與其他\033[0m"
+echo -e "  \033[0;32m9\033[0m. 還原所有設定"
+echo -e "  \033[0;32m10\033[0m. 還原字體設定"
+echo -e "  \033[0;32m11\033[0m. 還原輸入法設定"
+echo -e "  \033[0;32m12\033[0m. 還原 macOS 輸入設定"
+echo -e "  \033[0;32m13\033[0m. 還原自訂快捷鍵"
+echo -e "  \033[0;32m14\033[0m. 還原鍵盤 Swap 設定"
+echo -e "  \033[0;32m15\033[0m. 還原 Distrobox 設定"
+echo -e "  \033[0;32m16\033[0m. 還原 Chrome keyring 修復"
+echo -e "  \033[0;32m17\033[0m. 顯示設定狀態"
+echo -e "  \033[0;32m0\033[0m. 離開"
     echo -e ""
 }
 
@@ -99,10 +101,13 @@ install_all() {
      run_script "setup-distrobox.sh" "-i"
      echo ""
      
-     run_script "setup-keybindings.sh"
-     echo ""
-     
-     header "所有設定安裝完成！"
+run_script "setup-keybindings.sh"
+echo ""
+
+run_script "fix-chrome-keyring.sh" "-i"
+echo ""
+
+header "所有設定安裝完成！"
     echo ""
     echo "請重新登入以確保所有設定生效。"
 }
@@ -250,13 +255,32 @@ show_status() {
     fi
 
     echo ""
+    echo -e "${CYAN}Chrome keyring fix:${NC}"
+    if [[ -f "$HOME/.local/share/keyrings/Default_keyring.keyring" ]]; then
+        if grep -q "lock-on-idle=false" "$HOME/.local/share/keyrings/Default_keyring.keyring" && \
+           grep -q "lock-after=false" "$HOME/.local/share/keyrings/Default_keyring.keyring"; then
+            echo -e "  ${GREEN}✓${NC} Chrome keyring fix is installed"
+            local EXTRA_COUNT=$(ls -1 "$HOME/.local/share/keyrings/Default_keyring_"*.keyring 2>/dev/null | wc -l)
+            if [[ "$EXTRA_COUNT" -gt 0 ]]; then
+                echo -e "  ${YELLOW}!${NC} Found $EXTRA_COUNT extra keyring files"
+            else
+                echo -e "  ${GREEN}✓${NC} No extra keyring files"
+            fi
+        else
+            echo -e "  ${RED}✗${NC} Default keyring not properly configured"
+        fi
+    else
+        echo -e "  ${RED}✗${NC} Default keyring doesn't exist"
+    fi
+
+    echo ""
 }
 
 # 互動模式
 interactive_mode() {
     while true; do
-        show_menu
-        read -p "請選擇 [0-13]: " choice
+         show_menu
+         read -p "請選擇 [0-17]: " choice
         
         case "$choice" in
             1)
@@ -283,46 +307,54 @@ interactive_mode() {
                 run_script "setup-keybindings.sh"
                 read -p "按 Enter 繼續..."
                 ;;
-            7)
-                run_script "setup-keyboard-swap.sh" "-i"
-                read -p "按 Enter 繼續..."
-                ;;
-            8)
-                uninstall_all
-                read -p "按 Enter 繼續..."
-                ;;
-            9)
-                run_script "setup-fonts.sh" "-u"
-                read -p "按 Enter 繼續..."
-                ;;
-            10)
-                run_script "setup-input.sh" "-u"
-                read -p "按 Enter 繼續..."
-                ;;
-            11)
-                run_script "setup-macos-input.sh" "-u"
-                read -p "按 Enter 繼續..."
-                ;;
-            12)
-                run_script "setup-keybindings.sh" "-u"
-                read -p "按 Enter 繼續..."
-                ;;
-            13)
-                run_script "setup-keyboard-swap.sh" "-u"
-                read -p "按 Enter 繼續..."
-                ;;
-            14)
-                run_script "setup-distrobox.sh" "-u"
-                read -p "按 Enter 繼續..."
-                ;;
-            15)
-                show_status
-                read -p "按 Enter 繼續..."
-                ;;
-             0)
-                 info "再見！"
-                 exit 0
+             7)
+                 run_script "setup-keyboard-swap.sh" "-i"
+                 read -p "按 Enter 繼續..."
                  ;;
+             8)
+                 run_script "fix-chrome-keyring.sh" "-i"
+                 read -p "按 Enter 繼續..."
+                 ;;
+             9)
+                 uninstall_all
+                 read -p "按 Enter 繼續..."
+                 ;;
+             10)
+                 run_script "setup-fonts.sh" "-u"
+                 read -p "按 Enter 繼續..."
+                 ;;
+             11)
+                 run_script "setup-input.sh" "-u"
+                 read -p "按 Enter 繼續..."
+                 ;;
+             12)
+                 run_script "setup-macos-input.sh" "-u"
+                 read -p "按 Enter 繼續..."
+                 ;;
+             13)
+                 run_script "setup-keybindings.sh" "-u"
+                 read -p "按 Enter 繼續..."
+                 ;;
+             14)
+                 run_script "setup-keyboard-swap.sh" "-u"
+                 read -p "按 Enter 繼續..."
+                 ;;
+             15)
+                 run_script "setup-distrobox.sh" "-u"
+                 read -p "按 Enter 繼續..."
+                 ;;
+             16)
+                 run_script "fix-chrome-keyring.sh" "-u"
+                 read -p "按 Enter 繼續..."
+                 ;;
+             17)
+                 show_status
+                 read -p "按 Enter 繼續..."
+                 ;;
+              0)
+                  info "再見！"
+                  exit 0
+                  ;;
             *)
                 error "無效選項: $choice"
                 sleep 1
