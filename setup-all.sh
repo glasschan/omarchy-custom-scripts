@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # setup-all.sh
-# 主程式：設定所有 macOS 風格設定
+# 主程式：設定所有自訂設定 - macOS 風格 + 自訂快捷鍵
 
 set -e
 
@@ -62,21 +62,23 @@ show_menu() {
     header "Glass Omarchy 自訂工具箱"
     echo -e ""
     echo -e "\033[1;34m▼ 安裝設定\033[0m"
-    echo -e "  \033[0;32m1\033[0m. 安裝所有設定 (字體 + 輸入法 + macOS 輸入 + Distrobox)"
+    echo -e "  \033[0;32m1\033[0m. 安裝所有設定 (字體 + 輸入法 + macOS 輸入 + Distrobox + 快捷鍵)"
     echo -e "  \033[0;32m2\033[0m. 安裝字體設定"
     echo -e "  \033[0;32m3\033[0m. 安裝輸入法設定 (fcitx5-rime + 快速倉頡)"
     echo -e "  \033[0;32m4\033[0m. 安裝 macOS 風格輸入設定"
     echo -e "  \033[0;32m5\033[0m. 安裝 Distrobox + DistroShelf"
-    echo -e "  \033[0;32m6\033[0m. 交換內建鍵盤 Super/Alt (Optional)"
+    echo -e "  \033[0;32m6\033[0m. 安裝自訂快捷鍵 (截圖/錄影/剪貼簿)"
+    echo -e "  \033[0;32m7\033[0m. 交換內建鍵盤 Super/Alt (Optional)"
     echo -e ""
     echo -e "\033[1;34m▼ 還原與其他\033[0m"
-    echo -e "  \033[0;32m7\033[0m. 還原所有設定"
-    echo -e "  \033[0;32m8\033[0m. 還原字體設定"
-    echo -e "  \033[0;32m9\033[0m. 還原輸入法設定"
-    echo -e "  \033[0;32m10\033[0m. 還原 macOS 輸入設定"
-    echo -e "  \033[0;32m11\033[0m. 還原鍵盤 Swap 設定"
-    echo -e "  \033[0;32m12\033[0m. 還原 Distrobox 設定"
-    echo -e "  \033[0;32m13\033[0m. 顯示設定狀態"
+    echo -e "  \033[0;32m8\033[0m. 還原所有設定"
+    echo -e "  \033[0;32m9\033[0m. 還原字體設定"
+    echo -e "  \033[0;32m10\033[0m. 還原輸入法設定"
+    echo -e "  \033[0;32m11\033[0m. 還原 macOS 輸入設定"
+    echo -e "  \033[0;32m12\033[0m. 還原自訂快捷鍵"
+    echo -e "  \033[0;32m13\033[0m. 還原鍵盤 Swap 設定"
+    echo -e "  \033[0;32m14\033[0m. 還原 Distrobox 設定"
+    echo -e "  \033[0;32m15\033[0m. 顯示設定狀態"
     echo -e "  \033[0;32m0\033[0m. 離開"
     echo -e ""
 }
@@ -94,10 +96,13 @@ install_all() {
     run_script "setup-macos-input.sh" "-i"
     echo ""
     
-    run_script "setup-distrobox.sh" "-i"
-    echo ""
-    
-    header "所有設定安裝完成！"
+     run_script "setup-distrobox.sh" "-i"
+     echo ""
+     
+     run_script "setup-keybindings.sh"
+     echo ""
+     
+     header "所有設定安裝完成！"
     echo ""
     echo "請重新登入以確保所有設定生效。"
 }
@@ -116,6 +121,9 @@ uninstall_all() {
     echo ""
     
     run_script "setup-input.sh" "-u"
+    echo ""
+    
+    run_script "setup-keybindings.sh" "-u"
     echo ""
     
     run_script "setup-distrobox.sh" "-u"
@@ -222,6 +230,26 @@ show_status() {
     fi
 
     echo ""
+    echo -e "${CYAN}自訂快捷鍵設定:${NC}"
+    if [[ -f "$HOME/.config/hypr/bindings.conf" ]]; then
+        if grep -q "Custom screenshot and screen recording bindings" "$HOME/.config/hypr/bindings.conf"; then
+            echo -e "  ${GREEN}✓${NC} 自訂快捷鍵已安裝"
+        else
+            echo -e "  ${RED}✗${NC} 自訂快捷鍵未安裝"
+        fi
+    else
+        echo -e "  ${RED}✗${NC} bindings.conf 不存在"
+    fi
+
+    if [[ -f "$HOME/.config/elephant/clipboard.toml" ]]; then
+        if grep -q 'ydotool' "$HOME/.config/elephant/clipboard.toml"; then
+            echo -e "  ${GREEN}✓${NC} Elephant 自動貼上已設定"
+        else
+            echo -e "  ${YELLOW}!${NC} Elephant 已安裝但自動貼上未設定"
+        fi
+    fi
+
+    echo ""
 }
 
 # 互動模式
@@ -252,41 +280,49 @@ interactive_mode() {
                 read -p "按 Enter 繼續..."
                 ;;
             6)
-                run_script "setup-keyboard-swap.sh" "-i"
+                run_script "setup-keybindings.sh"
                 read -p "按 Enter 繼續..."
                 ;;
             7)
-                uninstall_all
+                run_script "setup-keyboard-swap.sh" "-i"
                 read -p "按 Enter 繼續..."
                 ;;
             8)
-                run_script "setup-fonts.sh" "-u"
+                uninstall_all
                 read -p "按 Enter 繼續..."
                 ;;
             9)
-                run_script "setup-input.sh" "-u"
+                run_script "setup-fonts.sh" "-u"
                 read -p "按 Enter 繼續..."
                 ;;
             10)
-                run_script "setup-macos-input.sh" "-u"
+                run_script "setup-input.sh" "-u"
                 read -p "按 Enter 繼續..."
                 ;;
             11)
-                run_script "setup-keyboard-swap.sh" "-u"
+                run_script "setup-macos-input.sh" "-u"
                 read -p "按 Enter 繼續..."
                 ;;
             12)
-                run_script "setup-distrobox.sh" "-u"
+                run_script "setup-keybindings.sh" "-u"
                 read -p "按 Enter 繼續..."
                 ;;
             13)
+                run_script "setup-keyboard-swap.sh" "-u"
+                read -p "按 Enter 繼續..."
+                ;;
+            14)
+                run_script "setup-distrobox.sh" "-u"
+                read -p "按 Enter 繼續..."
+                ;;
+            15)
                 show_status
                 read -p "按 Enter 繼續..."
                 ;;
-            0)
-                info "再見！"
-                exit 0
-                ;;
+             0)
+                 info "再見！"
+                 exit 0
+                 ;;
             *)
                 error "無效選項: $choice"
                 sleep 1
