@@ -60,29 +60,31 @@ run_script() {
 # 顯示選單
 show_menu() {
     header "Glass Omarchy 自訂工具箱"
-    echo -e ""
-echo -e "\033[1;34m▼ 安裝設定\033[0m"
-echo -e "  \033[0;32m1\033[0m. 安裝所有設定 (字體 + 輸入法 + macOS 輸入 + Distrobox + 快捷鍵)"
-echo -e "  \033[0;32m2\033[0m. 安裝字體設定"
-echo -e "  \033[0;32m3\033[0m. 安裝輸入法設定 (fcitx5-rime + 快速倉頡)"
-echo -e "  \033[0;32m4\033[0m. 安裝 macOS 風格輸入設定"
-echo -e "  \033[0;32m5\033[0m. 安裝 Distrobox + DistroShelf"
-echo -e "  \033[0;32m6\033[0m. 安裝自訂快捷鍵 (截圖/錄影/剪貼簿)"
-echo -e "  \033[0;32m7\033[0m. 交換內建鍵盤 Super/Alt (Optional)"
-echo -e "  \033[0;32m8\033[0m. 修復 Chrome keyring 密碼彈窗"
-echo -e ""
-echo -e "\033[1;34m▼ 還原與其他\033[0m"
-echo -e "  \033[0;32m9\033[0m. 還原所有設定"
-echo -e "  \033[0;32m10\033[0m. 還原字體設定"
-echo -e "  \033[0;32m11\033[0m. 還原輸入法設定"
-echo -e "  \033[0;32m12\033[0m. 還原 macOS 輸入設定"
-echo -e "  \033[0;32m13\033[0m. 還原自訂快捷鍵"
-echo -e "  \033[0;32m14\033[0m. 還原鍵盤 Swap 設定"
-echo -e "  \033[0;32m15\033[0m. 還原 Distrobox 設定"
-echo -e "  \033[0;32m16\033[0m. 還原 Chrome keyring 修復"
-echo -e "  \033[0;32m17\033[0m. 顯示設定狀態"
-echo -e "  \033[0;32m0\033[0m. 離開"
-    echo -e ""
+    echo ""
+    echo -e "\033[1;34m▼ 安裝設定\033[0m"
+    echo -e "  \033[0;32m1\033[0m. 安裝所有設定 (字體 + 輸入法 + macOS 輸入 + Distrobox + 快捷鍵 + 遊戲)"
+    echo -e "  \033[0;32m2\033[0m. 安裝字體設定"
+    echo -e "  \033[0;32m3\033[0m. 安裝輸入法設定 (fcitx5-rime + 快速倉頡)"
+    echo -e "  \033[0;32m4\033[0m. 安裝 macOS 風格輸入設定"
+    echo -e "  \033[0;32m5\033[0m. 安裝 Distrobox + DistroShelf"
+    echo -e "  \033[0;32m6\033[0m. 安裝自訂快捷鍵 (截圖/錄影/剪貼簿)"
+    echo -e "  \033[0;32m7\033[0m. 交換內建鍵盤 Super/Alt (Optional)"
+    echo -e "  \033[0;32m8\033[0m. 修復 Chrome keyring 密碼彈窗"
+    echo -e "  \033[0;32m9\033[0m. 設定遊戲相容性 (gamescope + 環境變數)"
+    echo ""
+    echo -e "\033[1;34m▼ 還原與其他\033[0m"
+    echo -e "  \033[0;32m10\033[0m. 還原所有設定"
+    echo -e "  \033[0;32m11\033[0m. 還原字體設定"
+    echo -e "  \033[0;32m12\033[0m. 還原輸入法設定"
+    echo -e "  \033[0;32m13\033[0m. 還原 macOS 輸入設定"
+    echo -e "  \033[0;32m14\033[0m. 還原自訂快捷鍵"
+    echo -e "  \033[0;32m15\033[0m. 還原鍵盤 Swap 設定"
+    echo -e "  \033[0;32m16\033[0m. 還原 Distrobox 設定"
+    echo -e "  \033[0;32m17\033[0m. 還原 Chrome keyring 修復"
+    echo -e "  \033[0;32m18\033[0m. 還原遊戲相容性設定"
+    echo -e "  \033[0;32m19\033[0m. 顯示設定狀態"
+    echo -e "  \033[0;32m0\033[0m. 離開"
+    echo ""
 }
 
 # 安裝所有設定
@@ -105,6 +107,9 @@ run_script "setup-keybindings.sh"
 echo ""
 
 run_script "fix-chrome-keyring.sh" "-i"
+echo ""
+
+run_script "setup-gaming.sh" "-i"
 echo ""
 
 header "所有設定安裝完成！"
@@ -136,7 +141,10 @@ uninstall_all() {
     
     run_script "setup-fonts.sh" "-u"
     echo ""
-    
+
+    run_script "setup-gaming.sh" "-u"
+    echo ""
+
     header "所有設定已還原！"
 }
 
@@ -255,6 +263,26 @@ show_status() {
     fi
 
     echo ""
+    echo -e "${CYAN}遊戲相容性設定:${NC}"
+    if pacman -Q gamescope &>/dev/null; then
+        echo -e "  ${GREEN}✓${NC} gamescope 已安裝"
+    else
+        echo -e "  ${RED}✗${NC} gamescope 未安裝"
+    fi
+
+    if [[ -f "$HOME/.config/hypr/games.conf" ]]; then
+        echo -e "  ${GREEN}✓${NC} games.conf 視窗規則已設定"
+    else
+        echo -e "  ${RED}✗${NC} games.conf 視窗規則未設定"
+    fi
+
+    if grep -q "SDL_VIDEODRIVER" "$HOME/.config/hypr/envs.conf" 2>/dev/null; then
+        echo -e "  ${GREEN}✓${NC} 遊戲環境變數已設定"
+    else
+        echo -e "  ${RED}✗${NC} 遊戲環境變數未設定"
+    fi
+
+    echo ""
     echo -e "${CYAN}Chrome keyring fix:${NC}"
     if [[ -f "$HOME/.local/share/keyrings/Default_keyring.keyring" ]]; then
         if grep -q "lock-on-idle=false" "$HOME/.local/share/keyrings/Default_keyring.keyring" && \
@@ -316,6 +344,10 @@ interactive_mode() {
                  read -p "按 Enter 繼續..."
                  ;;
              9)
+                 run_script "setup-gaming.sh" "-i"
+                 read -p "按 Enter 繼續..."
+                 ;;
+             9)
                  uninstall_all
                  read -p "按 Enter 繼續..."
                  ;;
@@ -348,6 +380,10 @@ interactive_mode() {
                  read -p "按 Enter 繼續..."
                  ;;
              17)
+                 run_script "setup-gaming.sh" "-u"
+                 read -p "按 Enter 繼續..."
+                 ;;
+             18)
                  show_status
                  read -p "按 Enter 繼續..."
                  ;;
