@@ -12,25 +12,34 @@
 
 ## 功能總覽
 
-| 腳本 | 功能 |
-|------|------|
-| `setup-fonts.sh` | 字體 + Chromium scale |
-| `setup-input.sh` | fcitx5-rime + 快速倉頡 |
-| `setup-macos-input.sh` | 鍵盤/觸控板 macOS 行為 |
-| `setup-keyboard-swap.sh` | 交換內建鍵盤 Super/Alt (Optional) |
-| `setup-distrobox.sh` | Distrobox + DistroShelf |
+| 分類 | 腳本 | 功能 |
+|------|------|------|
+| **系統設定** | `setup-fonts.sh` | 字體 + Chromium scale 修復 |
+| **輸入法** | `setup-input.sh` | fcitx5-rime + 快速倉頡 |
+| **鍵盤** | `setup-macos-input.sh` | 鍵盤/觸控板 macOS 行為 |
+| **鍵盤** | `setup-keyboard-swap.sh` | 交換內建鍵盤 Super/Alt (Optional) |
+| **快捷鍵** | `setup-keybindings.sh` | 截圖、錄影、剪貼簿自動貼上 |
+| **遊戲相容** | `setup-gaming.sh` | gamescope + 遊戲環境變數 + 視窗規則 |
+| **容器工具** | `setup-distrobox.sh` | Distrobox + DistroShelf + `de` alias |
+| **修復工具** | `fix-chrome-keyring.sh` | 修復 Chrome keyring 密碼彈窗 |
+| **相容包裝** | `setup-rime-scj.sh` | [舊版] 字體 + 輸入法組合（已拆分） |
 
 ## 快速開始
 
 ```bash
-# 互動選單
-./setup-all.sh -m
-
-# 一鍵安裝所有
+# 互動選單（預設）
 ./setup-all.sh
 
-# 檢查狀態
+# 一鍵安裝所有
+./setup-all.sh -i
+
+# 檢查所有設定狀態
 ./setup-all.sh -s
+
+# 單獨執行特定腳本
+./setup-fonts.sh -i     # 安裝
+./setup-fonts.sh -u     # 還原
+./setup-fonts.sh -s     # 檢查狀態
 ```
 
 ## 各腳本說明
@@ -94,6 +103,38 @@
   - Alt 鍵 → 變成 Super 鍵（可拉視窗選單、Super+數字切換workspace）
   - Super 鍵 → 變成 Alt 鍵（可當 Ctrl+Alt+T 之類的組合鍵）
 
+### setup-keybindings.sh — 快捷鍵設定
+
+**目標：** 截圖、螢幕錄影、剪貼簿的自訂快捷鍵
+
+| 快捷鍵 | 功能 |
+|--------|------|
+| `Alt+Shift+Q` | 區域截圖 |
+| `Alt+Shift+E` | 視窗截圖 |
+| `Alt+Shift+F` | 全螢幕截圖 |
+| `Alt+Shift+R` | 螢幕錄影 |
+| `Ctrl+\`` | 開啟剪貼簿管理員 |
+
+- **自動貼上**：選取剪貼項目後自動複製並貼上（使用 Shift+Insert）
+- **Pin 功能**：重要項目可固定在列表頂部
+
+### setup-gaming.sh — 遊戲相容性
+
+**目標：** 解決 Wayland 環境下 Unity/SDL 遊戲的常見問題
+
+- **gamescope**：微合成器，把遊戲包在獨立的 Wayland 視窗中
+- **SDL_VIDEODRIVER=x11**：強制 SDL 遊戲使用 XWayland
+- **自訂視窗規則**：針對特定遊戲的 float/center 規則
+- **Steam 啟動選項範本**：`gamescope -W 1920 -H 1080 -f -- %command%`
+
+### fix-chrome-keyring.sh — Chrome Keyring 修復
+
+**目標：** 解決 Chrome/Chromium 每次啟動都詢問 keyring 密碼的問題
+
+- 建立未加密的預設 keyring
+- 移除多餘的 keyring 檔案
+- 需要重新登入才能生效
+
 ## 支援的作業系統
 
 - Omarchy Linux (Arch-based)
@@ -104,13 +145,62 @@
 
 ```
 .
-├── setup-all.sh             # 主程式，選單整合所有腳本
+├── lib/
+│   └── common.sh            # 共用函式庫（顏色、紀錄函數、套件管理等）
+├── setup-all.sh             # 主程式，自動探索所有腳本 + 互動選單
 ├── setup-fonts.sh           # 字體設定
 ├── setup-input.sh           # 輸入法設定
 ├── setup-macos-input.sh    # 鍵盤/觸控板設定
-├── setup-keyboard-swap.sh   # 交換內建鍵盤 Super/Alt (Optional)
-└── setup-distrobox.sh       # Distrobox 設定
+├── setup-keyboard-swap.sh   # 交換內建鍵盤 Super/Alt
+├── setup-keybindings.sh     # 截圖/錄影/剪貼簿快捷鍵
+├── setup-gaming.sh          # 遊戲相容性設定
+├── setup-distrobox.sh       # Distrobox 容器工具
+├── fix-chrome-keyring.sh   # Chrome keyring 密碼彈窗修復
+└── setup-rime-scj.sh       # [舊版] 相容包裝
 ```
+
+## 開發者說明
+
+### 標準 CLI 介面
+
+所有腳本都支援一致的命令列參數：
+
+| 參數 | 功能 |
+|------|------|
+| `-i`, `--install` | 安裝/套用設定 |
+| `-u`, `--uninstall` | 還原設定 |
+| `-s`, `--status` | 顯示目前狀態 |
+| `-h`, `--help` | 顯示說明 |
+
+### 新增腳本
+
+只要在開頭加上 metadata 註解，就會自動出現在 `setup-all.sh` 選單中：
+
+```bash
+#!/bin/bash
+
+# my-new-script.sh
+# 我的新腳本功能說明
+# Category: 系統設定
+# Description: 腳本功能描述（會顯示在選單中）
+
+SCRIPT_NAME="$(basename "$0")"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# 載入共用函式庫
+source "$SCRIPT_DIR/lib/common.sh"
+
+# 實作三個標準函數
+install() { info "安裝中..." }
+uninstall() { info "還原中..." }
+show_status() { echo "狀態..." }
+```
+
+### 共用函式 (`lib/common.sh`)
+
+- **紀錄函數**：`info()`, `warn()`, `error()`, `detail()`, `header()` - 自動套用顏色
+- **套件管理**：`check_package()`, `install_package()` - 自動偵測 paru/yay/sudo
+- **工具函數**：`config_contains()`, `ensure_dir()`, `create_backup()`
 
 ## 授權
 
