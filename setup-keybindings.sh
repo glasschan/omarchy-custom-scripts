@@ -7,30 +7,14 @@
 # - ALT SHIFT + R: 螢幕錄影
 # - ALT SHIFT CTRL + R: 螢幕錄影 (含攝影機)
 # - CTRL + `: 開啟 elephant 剪貼簿管理員
-
-set -e
+# Category: 快捷鍵
+# Description: 設定截圖/錄影/剪貼簿快捷鍵
 
 SCRIPT_NAME="$(basename "$0")"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# 顏色輸出
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m'
-
-info() {
-    echo -e "${GREEN}[INFO]${NC} $1"
-}
-
-warn() {
-    echo -e "${YELLOW}[WARN]${NC} $1"
-}
-
-error() {
-    echo -e "${RED}[ERROR]${NC} $1"
-}
+# Load shared library
+source "$SCRIPT_DIR/lib/common.sh"
 
 # 檢查依賴
 check_dependencies() {
@@ -164,6 +148,37 @@ uninstall() {
     echo
 }
 
+# 顯示狀態
+show_status() {
+    local HYPR_BINDINGS="$HOME/.config/hypr/bindings.conf"
+    local CLIPBOARD_CONFIG="$HOME/.config/elephant/clipboard.toml"
+
+    echo -e "${CYAN}自訂快捷鍵設定狀態:${NC}"
+
+    if [[ -f "$HYPR_BINDINGS" ]]; then
+        if grep -q "Custom screenshot and screen recording bindings" "$HYPR_BINDINGS"; then
+            echo -e "  ${GREEN}✓${NC} 自訂快捷鍵已安裝"
+        else
+            echo -e "  ${RED}✗${NC} 自訂快捷鍵未安裝"
+        fi
+    else
+        echo -e "  ${YELLOW}!${NC} bindings.conf 不存在"
+    fi
+
+    if [[ -f "$CLIPBOARD_CONFIG" ]]; then
+        if grep -q 'wtype' "$CLIPBOARD_CONFIG"; then
+            echo -e "  ${GREEN}✓${NC} Elephant 自動貼上已設定"
+        else
+            echo -e "  ${YELLOW}!${NC} Elephant 已安裝但自動貼上未設定"
+        fi
+        if grep -q 'pinned_on_top\s*=\s*true' "$CLIPBOARD_CONFIG"; then
+            echo -e "  ${GREEN}✓${NC} Pin 功能已開啟"
+        fi
+    else
+        echo -e "  ${YELLOW}!${NC} clipboard.toml 不存在"
+    fi
+}
+
 # 使用說明
 usage() {
     echo "Usage: $SCRIPT_NAME [OPTION]"
@@ -171,8 +186,35 @@ usage() {
     echo "Options:"
     echo "  -i, --install     安裝設定 (預設)"
     echo "  -u, --uninstall   還原設定"
+    echo "  -s, --status      顯示目前狀態"
     echo "  -h, --help        顯示此說明"
     echo ""
+}
+
+# 安裝模式
+install() {
+    info "開始設定自訂快捷鍵..."
+
+    check_dependencies
+    setup_elephant_clipboard
+    setup_hypr_keybindings
+
+    echo
+    info "=============================="
+    info "設定完成!"
+    info "=============================="
+    echo
+    echo "新增的快捷鍵："
+    echo "  ALT SHIFT + Q      → 區域截圖"
+    echo "  ALT SHIFT + E      → 視窗選取截圖"
+    echo "  ALT SHIFT + F      → 全螢幕截圖"
+    echo "  ALT SHIFT + R      → 開始螢幕錄影"
+    echo "  ALT SHIFT CTRL + R → 開始螢幕錄影 (含攝影機)"
+    echo '  CTRL + `           → 開啟剪貼簿管理員'
+    echo
+    echo "自動貼上已啟用：選取項目後會自動複製並貼上 (使用 Shift+Insert)"
+    echo "Pin 功能已開啟：釘選項目會固定在列表頂部"
+    echo
 }
 
 # 主程式
@@ -181,32 +223,14 @@ main() {
         -u|--uninstall)
             uninstall
             ;;
+        -s|--status)
+            show_status
+            ;;
         -h|--help)
             usage
             ;;
         -i|--install|"")
-            info "開始設定自訂快捷鍵..."
-
-            check_dependencies
-            setup_elephant_clipboard
-            setup_hypr_keybindings
-
-            echo
-            info "=============================="
-            info "設定完成!"
-            info "=============================="
-            echo
-            echo "新增的快捷鍵："
-            echo "  ALT SHIFT + Q      → 區域截圖"
-            echo "  ALT SHIFT + E      → 視窗選取截圖"
-            echo "  ALT SHIFT + F      → 全螢幕截圖"
-            echo "  ALT SHIFT + R      → 開始螢幕錄影"
-            echo "  ALT SHIFT CTRL + R → 開始螢幕錄影 (含攝影機)"
-            echo '  CTRL + `           → 開啟剪貼簿管理員'
-            echo
-            echo "自動貼上已啟用：選取項目後會自動複製並貼上 (使用 Shift+Insert)"
-            echo "Pin 功能已開啟：釘選項目會固定在列表頂部"
-            echo
+            install
             ;;
         *)
             error "未知選項: $1"

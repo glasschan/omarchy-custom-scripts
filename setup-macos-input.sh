@@ -2,34 +2,16 @@
 
 # setup-macos-input.sh
 # 設定 macOS 風格輸入體驗
-
-set -e
+# Category: 鍵盤
+# Description: macOS 風格鍵盤/觸控板設定
 
 SCRIPT_NAME="$(basename "$0")"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Load shared library
+source "$SCRIPT_DIR/lib/common.sh"
+
 INPUT_CONF="$HOME/.config/hypr/input.conf"
-
-# 顏色輸出
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m'
-
-info() {
-    echo -e "${GREEN}[INFO]${NC} $1"
-}
-
-warn() {
-    echo -e "${YELLOW}[WARN]${NC} $1"
-}
-
-error() {
-    echo -e "${RED}[ERROR]${NC} $1"
-}
-
-detail() {
-    echo -e "${BLUE}[DETAIL]${NC} $1"
-}
 
 # 檢查是否已設定 macOS 風格
 check_macos_input() {
@@ -154,6 +136,21 @@ reset_input() {
     fi
 }
 
+# 顯示狀態
+show_status() {
+    echo -e "${CYAN}macOS 風格輸入設定狀態:${NC}"
+
+    if check_macos_input; then
+        echo -e "  ${GREEN}✓${NC} macOS 風格輸入已設定"
+    else
+        echo -e "  ${YELLOW}!${NC} macOS 風格輸入未設定"
+    fi
+
+    if [[ -f "$HOME/.config/hypr/input.conf.bak" ]]; then
+        echo -e "  ${GREEN}✓${NC} 存在備份檔案"
+    fi
+}
+
 # 安裝模式
 install() {
     info "開始設定 macOS 風格輸入..."
@@ -184,11 +181,12 @@ usage() {
     echo "Options:"
     echo "  -i, --install     安裝/設定 macOS 風格輸入 (預設)"
     echo "  -u, --uninstall   還原輸入設定"
+    echo "  -s, --status      顯示目前狀態"
     echo "  -h, --help        顯示此說明"
     echo ""
     echo "Examples:"
     echo "  $SCRIPT_NAME              # 設定 macOS 風格輸入"
-    echo "  $SCRIPT_NAME -u           # 還原輸入設定"
+    echo "  $SCRIPT_NAME -s           # 顯示狀態"
 }
 
 # 主程式
@@ -196,6 +194,9 @@ main() {
     case "${1:-}" in
         -u|--uninstall)
             uninstall
+            ;;
+        -s|--status)
+            show_status
             ;;
         -h|--help)
             usage

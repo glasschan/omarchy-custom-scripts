@@ -2,37 +2,18 @@
 
 # setup-fonts.sh
 # 設定字體同 Chromium scale factor
-
-set -e
+# Category: 系統設定
+# Description: 安裝字體 + Chromium 縮放修復
 
 SCRIPT_NAME="$(basename "$0")"
-RIME_DIR="$HOME/.local/share/fcitx5/rime"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Load shared library
+source "$SCRIPT_DIR/lib/common.sh"
+
 CHROMIUM_FLAGS="$HOME/.config/chromium-flags.conf"
 FONT_NAME="MiSans"
 FONT_SIZE=10
-
-# 顏色輸出
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m'
-
-info() {
-    echo -e "${GREEN}[INFO]${NC} $1"
-}
-
-warn() {
-    echo -e "${YELLOW}[WARN]${NC} $1"
-}
-
-error() {
-    echo -e "${RED}[ERROR]${NC} $1"
-}
-
-detail() {
-    echo -e "${BLUE}[DETAIL]${NC} $1"
-}
 
 # 字體下載連結
 MISANS_URL="https://hyperos.mi.com/font-download/MiSans.zip"
@@ -255,6 +236,39 @@ reset_chromium() {
     fi
 }
 
+# 顯示狀態
+show_status() {
+    echo -e "${CYAN}字體設定狀態:${NC}"
+
+    if check_font_installed "MiSans"; then
+        echo -e "  ${GREEN}✓${NC} MiSans 字體已安裝"
+    else
+        echo -e "  ${RED}✗${NC} MiSans 字體未安裝"
+    fi
+
+    if check_font_installed "OPPO Sans"; then
+        echo -e "  ${GREEN}✓${NC} OPPO Sans 字體已安裝"
+    else
+        echo -e "  ${RED}✗${NC} OPPO Sans 字體未安裝"
+    fi
+
+    local current_font
+    current_font=$(gsettings get org.gnome.desktop.interface font-name 2>/dev/null || echo "未設定")
+    echo -e "  目前 GTK 字體: $current_font"
+
+    echo ""
+    echo -e "${CYAN}Chromium 設定:${NC}"
+    if [[ -f "$CHROMIUM_FLAGS" ]]; then
+        if grep -q "force-device-scale-factor=1" "$CHROMIUM_FLAGS"; then
+            echo -e "  ${GREEN}✓${NC} Scale factor 已設為 1"
+        else
+            echo -e "  ${YELLOW}!${NC} Scale factor 未設定為 1"
+        fi
+    else
+        echo -e "  ${RED}✗${NC} Chromium flags 檔案不存在"
+    fi
+}
+
 # 安裝模式
 install() {
     info "開始設定字體..."
@@ -279,12 +293,12 @@ usage() {
     echo "  -i, --install     安裝/設定字體 (預設)"
     echo "  -u, --uninstall   還原字體設定"
     echo "  -d, --download    只下載字體不安裝"
+    echo "  -s, --status      顯示目前狀態"
     echo "  -h, --help        顯示此說明"
     echo ""
     echo "Examples:"
     echo "  $SCRIPT_NAME              # 設定字體 (自動下載)"
-    echo "  $SCRIPT_NAME -u           # 還原字體"
-    echo "  $SCRIPT_NAME -d           # 只下載字體"
+    echo "  $SCRIPT_NAME -s           # 顯示狀態"
 }
 
 # 主程式
@@ -295,6 +309,9 @@ main() {
             ;;
         -d|--download)
             auto_download_fonts
+            ;;
+        -s|--status)
+            show_status
             ;;
         -h|--help)
             usage

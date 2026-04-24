@@ -2,50 +2,43 @@
 
 # setup-keyboard-swap.sh
 # 交換 Laptop 內建鍵盤的 Super 和 Alt 鍵
-
-set -e
+# Category: 鍵盤
+# Description: 交換內建鍵盤 Super/Alt 鍵
 
 SCRIPT_NAME="$(basename "$0")"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Load shared library
+source "$SCRIPT_DIR/lib/common.sh"
+
 INPUT_CONF="$HOME/.config/hypr/input.conf"
-
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-CYAN='\033[0;36m'
-NC='\033[0m'
-
-info() {
-    echo -e "${GREEN}[INFO]${NC} $1"
-}
-
-warn() {
-    echo -e "${YELLOW}[WARN]${NC} $1"
-}
-
-error() {
-    echo -e "${RED}[ERROR]${NC} $1"
-}
-
-detail() {
-    echo -e "${BLUE}[DETAIL]${NC} $1"
-}
 
 list_keyboards() {
     hyprctl devices 2>/dev/null | awk '
-/^[[:space:]]*Keyboard at/ {
-    device_line = $0
+/Keyboard at/ {
     getline
     gsub(/^[[:space:]]+|[[:space:]]+$/, "")
     name = $0
-    is_builtin = 0
     lname = tolower(name)
-    if (lname ~ /video-bus|power-button|hotkeys|virtual-keyboard/) {
-        skip = 1
+
+    # POSITIVE filter: only include devices with "key" or "keyboard"
+    if (lname !~ /key|keyboard/) {
+        next
     }
-    if (lname !~ /receiver|usb|bluetooth|wireless|logitech|microsoft|apple/) {
+
+    # THEN exclude virtual/special devices (wmi-keys = function keys only)
+    skip_patterns = "virtual-keyboard|virtual-device|fcitx|ydotool|wmi-keys"
+    if (lname ~ skip_patterns) {
+        next
+    }
+
+    # Detect built-in vs external
+    is_builtin = 0
+    external_patterns = "receiver|usb|bluetooth|wireless|logitech|microsoft|apple|keychron"
+    if (lname !~ external_patterns) {
         is_builtin = 1
     }
+
     printf "%s|%d\n", name, is_builtin
 }'
 }
@@ -157,12 +150,26 @@ uninstall() {
     info "已移除 Swap 設定"
 }
 
+# 顯示狀態
+show_status() {
+    echo -e "${CYAN}鍵盤 Swap 設定狀態:${NC}"
+
+    if check_swap_configured; then
+        echo -e "  ${GREEN}✓${NC} Super/Alt Swap 已設定"
+        local kb_name=$(get_swap_keyboard_name)
+        echo -e "  已設定的鍵盤: $kb_name"
+    else
+        echo -e "  ${YELLOW}!${NC} Super/Alt Swap 未設定"
+    fi
+}
+
 usage() {
     echo "Usage: $SCRIPT_NAME [OPTION]"
     echo ""
     echo "Options:"
     echo "  -i, --install     安裝 Swap 設定 (預設)"
     echo "  -u, --uninstall   移除 Swap 設定"
+    echo "  -s, --status      顯示目前狀態"
     echo "  -h, --help        顯示此說明"
 }
 
@@ -170,6 +177,9 @@ main() {
     case "${1:-}" in
         -u|--uninstall)
             uninstall
+            ;;
+        -s|--status)
+            show_status
             ;;
         -h|--help)
             usage

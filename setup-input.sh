@@ -2,39 +2,16 @@
 
 # setup-input.sh
 # 設定 fcitx5-rime + 快速倉頡輸入法
-
-set -e
+# Category: 輸入法
+# Description: 安裝 Fcitx5 + 快速倉頡
 
 SCRIPT_NAME="$(basename "$0")"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Load shared library
+source "$SCRIPT_DIR/lib/common.sh"
+
 RIME_DIR="$HOME/.local/share/fcitx5/rime"
-
-# 顏色輸出
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m'
-
-info() {
-    echo -e "${GREEN}[INFO]${NC} $1"
-}
-
-warn() {
-    echo -e "${YELLOW}[WARN]${NC} $1"
-}
-
-error() {
-    echo -e "${RED}[ERROR]${NC} $1"
-}
-
-detail() {
-    echo -e "${BLUE}[DETAIL]${NC} $1"
-}
-
-# 檢查套件是否安裝
-check_package() {
-    pacman -Q "$1" &>/dev/null
-}
 
 # 檢查 rime-scj 是否安裝
 check_rime_scj() {
@@ -76,35 +53,17 @@ check_fcitx5_alttrigger() {
 # 移除 fcitx5 config 中 AltTriggerKeys 的 Shift_L
 setup_fcitx5_alttrigger() {
     info "檢查 fcitx5 AltTriggerKeys 設定..."
-    
+
     if ! check_fcitx5_alttrigger; then
         info "fcitx5 AltTriggerKeys 未綁定 Shift_L，跳過"
         return 0
     fi
-    
+
     info "移除 fcitx5 AltTriggerKeys 的 Shift_L 綁定..."
     local fcitx5_config="$HOME/.config/fcitx5/config"
     sed -i '/^\[Hotkey\/AltTriggerKeys\]$/,/^\[/{/^0=Shift_L$/d}' "$fcitx5_config"
-    
-    info "fcitx5 AltTriggerKeys Shift_L 已移除"
-}
 
-# 安裝套件（如果需要）
-install_package() {
-    local pkg="$1"
-    if check_package "$pkg"; then
-        info "$pkg 已安裝，跳過"
-        return 0
-    fi
-    
-    info "正在安裝 $pkg..."
-    if command -v paru &>/dev/null; then
-        paru -S --noconfirm "$pkg"
-    elif command -v yay &>/dev/null; then
-        yay -S --noconfirm "$pkg"
-    else
-        sudo pacman -S --noconfirm "$pkg"
-    fi
+    info "fcitx5 AltTriggerKeys Shift_L 已移除"
 }
 
 # 安裝 fcitx5-rime
@@ -122,25 +81,25 @@ setup_fcitx5_config() {
 # 安裝 rime-scj
 setup_rime_scj() {
     info "檢查 rime-scj..."
-    
+
     if check_rime_scj; then
         info "rime-scj 已安裝，跳過"
         return 0
     fi
-    
+
     info "下載並安裝 rime-scj..."
     mkdir -p "$RIME_DIR"
     cd "$RIME_DIR"
-    
+
     local temp_dir=$(mktemp -d)
     git clone --depth 1 https://github.com/rime/rime-scj.git "$temp_dir"
-    
+
     cp "$temp_dir"/*.yaml "$RIME_DIR/"
     rm -rf "$temp_dir"
-    
+
     detail "已安裝檔案:"
     ls -la "$RIME_DIR"/scj6.* | sed 's/^/  /'
-    
+
     info "rime-scj 安裝完成"
 }
 
@@ -154,15 +113,15 @@ remove_rime_scj() {
 # 設定 scj6.custom.yaml
 setup_scj6_custom() {
     info "檢查 scj6.custom.yaml..."
-    
+
     if check_scj6_custom; then
         info "scj6.custom.yaml 已設定，跳過"
         return 0
     fi
-    
+
     info "建立 scj6.custom.yaml..."
     mkdir -p "$RIME_DIR"
-    
+
     cat > "$RIME_DIR/scj6.custom.yaml" << 'EOF'
 patch:
   switches:
@@ -170,10 +129,10 @@ patch:
       reset: 1
       states: [ 中文, 西文 ]
 EOF
-    
+
     detail "scj6.custom.yaml 內容:"
     cat "$RIME_DIR/scj6.custom.yaml" | sed 's/^/  /'
-    
+
     info "scj6.custom.yaml 建立完成"
 }
 
@@ -187,15 +146,15 @@ remove_scj6_custom() {
 # 設定 default.custom.yaml
 setup_default_custom() {
     info "檢查 default.custom.yaml..."
-    
+
     if check_default_custom; then
         info "default.custom.yaml 已設定，跳過"
         return 0
     fi
-    
+
     info "建立 default.custom.yaml..."
     mkdir -p "$RIME_DIR"
-    
+
     cat > "$RIME_DIR/default.custom.yaml" << 'EOF'
 patch:
   schema_list:
@@ -216,10 +175,10 @@ patch:
       Caps_Lock: noop
       Eisu_toggle: noop
 EOF
-    
+
     detail "default.custom.yaml 內容:"
     cat "$RIME_DIR/default.custom.yaml" | sed 's/^/  /'
-    
+
     info "default.custom.yaml 建立完成"
 }
 
@@ -259,42 +218,83 @@ redeploy_rime() {
     warn "等待 Rime 部署超時，請手動重啟 fcitx5"
 }
 
+# 顯示狀態
+show_status() {
+    echo -e "${CYAN}Fcitx5 Rime 狀態:${NC}"
+
+    if check_package "fcitx5-rime"; then
+        echo -e "  ${GREEN}✓${NC} fcitx5-rime 已安裝"
+    else
+        echo -e "  ${RED}✗${NC} fcitx5-rime 未安裝"
+    fi
+
+    if check_package "fcitx5-config-qt"; then
+        echo -e "  ${GREEN}✓${NC} fcitx5-config-qt 已安裝"
+    else
+        echo -e "  ${RED}✗${NC} fcitx5-config-qt 未安裝"
+    fi
+
+    if check_rime_scj; then
+        echo -e "  ${GREEN}✓${NC} rime-scj 已安裝"
+    else
+        echo -e "  ${RED}✗${NC} rime-scj 未安裝"
+    fi
+
+    if check_scj6_custom; then
+        echo -e "  ${GREEN}✓${NC} scj6.custom.yaml 已設定"
+    else
+        echo -e "  ${RED}✗${NC} scj6.custom.yaml 未設定"
+    fi
+
+    if check_default_custom; then
+        echo -e "  ${GREEN}✓${NC} default.custom.yaml 已設定"
+    else
+        echo -e "  ${RED}✗${NC} default.custom.yaml 未設定"
+    fi
+
+    if pgrep -x "fcitx5" > /dev/null; then
+        echo -e "  ${GREEN}✓${NC} fcitx5 正在執行"
+    else
+        echo -e "  ${YELLOW}!${NC} fcitx5 未執行"
+    fi
+}
+
 # 安裝模式
 install() {
     info "開始設定 fcitx5-rime + 快速倉頡..."
-    
+
     local need_redeploy=false
     local need_fcitx5_restart=false
-    
+
     if ! check_package "fcitx5-rime"; then
         setup_fcitx5_rime
         need_redeploy=true
     fi
-    
+
     if ! check_package "fcitx5-config-qt"; then
         setup_fcitx5_config
     fi
-    
+
     if ! check_rime_scj; then
         setup_rime_scj
         need_redeploy=true
     fi
-    
+
     if ! check_scj6_custom; then
         setup_scj6_custom
         need_redeploy=true
     fi
-    
+
     if ! check_default_custom; then
         setup_default_custom
         need_redeploy=true
     fi
-    
+
     if check_fcitx5_alttrigger; then
         setup_fcitx5_alttrigger
         need_fcitx5_restart=true
     fi
-    
+
     if $need_redeploy; then
         redeploy_rime
     elif $need_fcitx5_restart; then
@@ -309,7 +309,7 @@ install() {
     else
         info "所有設定已完成，無需重新部署"
     fi
-    
+
     info ""
     info "設定完成！"
     info "快捷鍵："
@@ -324,11 +324,11 @@ install() {
 # 解除安裝模式
 uninstall() {
     info "開始還原 fcitx5-rime 設定..."
-    
+
     remove_scj6_custom
     remove_default_custom
     remove_rime_scj
-    
+
     info "fcitx5-rime 設定已還原！"
     info "注意: fcitx5-rime 套件未被移除，如需移除請手動執行:"
     info "  sudo pacman -R fcitx5-rime fcitx5-config-qt"
@@ -341,11 +341,12 @@ usage() {
     echo "Options:"
     echo "  -i, --install     安裝/設定輸入法 (預設)"
     echo "  -u, --uninstall   還原輸入法設定"
+    echo "  -s, --status      顯示目前狀態"
     echo "  -h, --help        顯示此說明"
     echo ""
     echo "Examples:"
     echo "  $SCRIPT_NAME              # 設定輸入法"
-    echo "  $SCRIPT_NAME -u           # 還原輸入法"
+    echo "  $SCRIPT_NAME -s           # 顯示狀態"
 }
 
 # 主程式
@@ -353,6 +354,9 @@ main() {
     case "${1:-}" in
         -u|--uninstall)
             uninstall
+            ;;
+        -s|--status)
+            show_status
             ;;
         -h|--help)
             usage

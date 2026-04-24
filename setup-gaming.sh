@@ -2,74 +2,19 @@
 
 # setup-gaming.sh
 # 設定 Hyprland 遊戲相容性（修復 Unity 遊戲無視窗問題）
-
-set -e
+# Category: 遊戲相容
+# Description: 設定遊戲相容性 (gamescope + 環境變數)
 
 SCRIPT_NAME="$(basename "$0")"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Load shared library
+source "$SCRIPT_DIR/lib/common.sh"
+
 HYPR_CONFIG_DIR="$HOME/.config/hypr"
 HYPRLAND_CONF="$HYPR_CONFIG_DIR/hyprland.conf"
 ENVS_CONF="$HYPR_CONFIG_DIR/envs.conf"
 GAMES_CONF="$HYPR_CONFIG_DIR/games.conf"
-
-# 顏色輸出
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-CYAN='\033[0;36m'
-NC='\033[0m'
-
-info() {
-    echo -e "${GREEN}[INFO]${NC} $1"
-}
-
-header() {
-    echo -e "${CYAN}========================================${NC}"
-    echo -e "${CYAN}$1${NC}"
-    echo -e "${CYAN}========================================${NC}"
-}
-
-warn() {
-    echo -e "${YELLOW}[WARN]${NC} $1"
-}
-
-error() {
-    echo -e "${RED}[ERROR]${NC} $1"
-}
-
-detail() {
-    echo -e "${BLUE}[DETAIL]${NC} $1"
-}
-
-# 檢查套件是否安裝
-check_package() {
-    pacman -Q "$1" &>/dev/null
-}
-
-# 安裝套件（如果需要）
-install_package() {
-    local pkg="$1"
-    if check_package "$pkg"; then
-        info "$pkg 已安裝，跳過"
-        return 0
-    fi
-
-    info "正在安裝 $pkg..."
-    if command -v paru &>/dev/null; then
-        paru -S --noconfirm "$pkg"
-    elif command -v yay &>/dev/null; then
-        yay -S --noconfirm "$pkg"
-    else
-        sudo pacman -S --noconfirm "$pkg"
-    fi
-}
-
-# 檢查設定檔是否包含特定內容
-config_contains() {
-    local file="$1"
-    local pattern="$2"
-    [[ -f "$file" ]] && grep -q "$pattern" "$file"
-}
 
 # 安裝 gamescope
 setup_gamescope() {
@@ -194,6 +139,29 @@ uninstall() {
     info "  sudo pacman -R gamescope"
 }
 
+# 顯示狀態
+show_status() {
+    echo -e "${CYAN}遊戲相容性設定狀態:${NC}"
+
+    if check_package "gamescope"; then
+        echo -e "  ${GREEN}✓${NC} gamescope 已安裝"
+    else
+        echo -e "  ${RED}✗${NC} gamescope 未安裝"
+    fi
+
+    if [[ -f "$GAMES_CONF" ]]; then
+        echo -e "  ${GREEN}✓${NC} games.conf 視窗規則已設定"
+    else
+        echo -e "  ${RED}✗${NC} games.conf 視窗規則未設定"
+    fi
+
+    if config_contains "$ENVS_CONF" "SDL_VIDEODRIVER"; then
+        echo -e "  ${GREEN}✓${NC} 遊戲環境變數已設定"
+    else
+        echo -e "  ${RED}✗${NC} 遊戲環境變數未設定"
+    fi
+}
+
 # 使用說明
 usage() {
     echo "Usage: $SCRIPT_NAME [OPTION]"
@@ -201,11 +169,12 @@ usage() {
     echo "Options:"
     echo "  -i, --install     安裝/設定遊戲相容性 (預設)"
     echo "  -u, --uninstall   還原遊戲相容性設定"
+    echo "  -s, --status      顯示目前狀態"
     echo "  -h, --help        顯示此說明"
     echo ""
     echo "Examples:"
     echo "  $SCRIPT_NAME              # 設定遊戲相容性"
-    echo "  $SCRIPT_NAME -u           # 還原遊戲相容性設定"
+    echo "  $SCRIPT_NAME -s           # 顯示狀態"
     echo ""
     echo "安裝後設定:"
     echo "  - Steam 遊戲啟動選項使用: gamescope -W 1920 -H 1080 -f -- %command%"
@@ -252,6 +221,9 @@ main() {
     case "${1:-}" in
         -u|--uninstall)
             uninstall
+            ;;
+        -s|--status)
+            show_status
             ;;
         -h|--help)
             usage
