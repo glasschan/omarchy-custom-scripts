@@ -62,12 +62,12 @@ name_pretty = ''
 EOF
     else
         info "更新現有 clipboard.toml..."
-        if grep -q '^command\s*=' "$CLIPBOARD_CONFIG"; then
-            sed -i 's/^command\s*=.*$/command = "wl-copy && sleep 0.2 && wtype -M shift -k Insert -m shift"/' "$CLIPBOARD_CONFIG"
+        if grep -Eq '^command\s*=' "$CLIPBOARD_CONFIG"; then
+            sed -i 's/^command\s*=.*$/command = "wl-copy \&\& sleep 0.2 \&\& wtype -M shift -k Insert -m shift"/' "$CLIPBOARD_CONFIG"
         else
             echo 'command = "wl-copy && sleep 0.2 && wtype -M shift -k Insert -m shift"' >> "$CLIPBOARD_CONFIG"
         fi
-        if grep -q '^pinned_on_top\s*=' "$CLIPBOARD_CONFIG"; then
+        if grep -Eq '^pinned_on_top\s*=' "$CLIPBOARD_CONFIG"; then
             sed -i 's/^pinned_on_top\s*=.*$/pinned_on_top = true/' "$CLIPBOARD_CONFIG"
         else
             echo 'pinned_on_top = true' >> "$CLIPBOARD_CONFIG"

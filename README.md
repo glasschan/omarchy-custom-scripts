@@ -51,7 +51,7 @@
 - **GTK 字體**：MiSans 10
   - 為什麼：支援 CJK、個人覺得耐看
 - **Chromium scale**：設定為 1
-  - 為什麼：Hyprland 已經处理 HiDPI，Chromium 再縮放會造成 UI 過大
+  - 為什麼：Hyprland 已經處理 HiDPI，Chromium 再縮放會造成 UI 過大
 
 ### setup-input.sh — 輸入法
 
@@ -155,8 +155,8 @@
 ├── setup-keybindings.sh     # 截圖/錄影/剪貼簿快捷鍵
 ├── setup-gaming.sh          # 遊戲相容性設定
 ├── setup-distrobox.sh       # Distrobox 容器工具
-├── fix-chrome-keyring.sh   # Chrome keyring 密碼彈窗修復
-└── setup-rime-scj.sh       # [舊版] 相容包裝
+├── fix-chrome-keyring.sh    # Chrome keyring 密碼彈窗修復
+└── setup-rime-scj.sh        # [舊版] 相容包裝
 ```
 
 ## 開發者說明
@@ -190,15 +190,27 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # 載入共用函式庫
 source "$SCRIPT_DIR/lib/common.sh"
 
-# 實作三個標準函數
+# 實作標準函數
 install() { info "安裝中..." }
 uninstall() { info "還原中..." }
-show_status() { echo "狀態..." }
+show_status() { info "顯示狀態..." }
+
+# 主程式
+main() {
+    case "${1:-}" in
+        -u|--uninstall) uninstall ;;
+        -s|--status) show_status ;;
+        -h|--help) usage ;;
+        -i|--install|"") install ;;
+    esac
+}
+
+main "$@"
 ```
 
 ### 共用函式 (`lib/common.sh`)
 
-- **紀錄函數**：`info()`, `warn()`, `error()`, `detail()`, `header()` - 自動套用顏色
+- **記錄函數**：`info()`, `warn()`, `error()`, `detail()`, `header()` - 自動套用顏色
 - **套件管理**：`check_package()`, `install_package()` - 自動偵測 paru/yay/sudo
 - **工具函數**：`config_contains()`, `ensure_dir()`, `create_backup()`
 
