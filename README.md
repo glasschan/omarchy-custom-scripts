@@ -15,6 +15,7 @@
 | 分類 | 腳本 | 功能 |
 |------|------|------|
 | **系統設定** | `setup-fonts.sh` | 字體 + Chromium scale 修復 |
+| **系統設定** | `setup-looknfeel.sh` | Hyprland Look & Feel (圓角、陰影、動畫、漸層邊框 |
 | **輸入法** | `setup-input.sh` | fcitx5-rime + 快速倉頡 |
 | **鍵盤** | `setup-macos-input.sh` | 鍵盤/觸控板 macOS 行為 |
 | **鍵盤** | `setup-keyboard-swap.sh` | 交換內建鍵盤 Super/Alt (Optional) |
@@ -52,6 +53,23 @@
   - 為什麼：支援 CJK、個人覺得耐看
 - **Chromium scale**：設定為 1
   - 為什麼：Hyprland 已經處理 HiDPI，Chromium 再縮放會造成 UI 過大
+
+### setup-looknfeel.sh — Hyprland 視覺與動畫
+
+**目標：** 自訂 Hyprland 的 Look & Feel，讓視覺更現代化且動畫更流暢
+
+- **漸層邊框**：橘紅色漸層 (f38d70 → fd6883)
+  - 為什麼：比預設的青藍色更有溫度
+- **視窗圓角**：10px 圓角
+  - 為什麼：更現代的視覺風格
+- **陰影 & 毛玻璃**：強化版 blur + shadow
+  - 為什麼：增加視覺層次感
+- **未聚焦視窗暗化**：dim_inactive + dim_strength = 0.25
+  - 為什麼：更容易分辨哪個視窗是焦點
+- **流暢動畫曲線**：自訂 Bezier 曲線 + 精心調整的速度
+  - 為什麼：比預設更細緻順暢的動畫體驗
+- **邊框拖曳調整大小**：resize_on_border = true
+  - 為什麼：更直覺的視窗大小調整
 
 ### setup-input.sh — 輸入法
 
