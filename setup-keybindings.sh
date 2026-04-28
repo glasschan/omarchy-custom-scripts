@@ -6,6 +6,7 @@
 # - ALT SHIFT + F: 視窗截圖
 # - ALT SHIFT + R: 螢幕錄影
 # - ALT SHIFT CTRL + R: 螢幕錄影 (含攝影機)
+# - ALT SHIFT + A: 顏色選擇器
 # - CTRL + `: 開啟 elephant 剪貼簿管理員
 # Category: 快捷鍵
 # Description: 設定截圖/錄影/剪貼簿快捷鍵
@@ -88,8 +89,8 @@ setup_hypr_keybindings() {
         exit 1
     fi
 
-    # 檢查是否已經加入過
-    if grep -q "Custom screenshot and screen recording bindings" "$HYPR_BINDINGS"; then
+    # 檢查是否已經加入過 (兼容新舊版本的標記)
+    if grep -q "Custom keybindings added by setup-keybindings.sh" "$HYPR_BINDINGS" || grep -q "Custom screenshot and screen recording bindings" "$HYPR_BINDINGS"; then
         warn "自訂快捷鍵似乎已經加入，跳過重複新增"
         return
     fi
@@ -97,10 +98,13 @@ setup_hypr_keybindings() {
     # 在檔案末尾加入快捷鍵
 cat >> "$HYPR_BINDINGS" << 'EOF'
 
-# Custom screenshot and screen recording bindings
+# Custom keybindings added by setup-keybindings.sh
 bindd = ALT SHIFT, Q, Screenshot (region), exec, omarchy-cmd-screenshot region
 bindd = ALT SHIFT, E, Screenshot (window), exec, omarchy-cmd-screenshot windows
 bindd = ALT SHIFT, F, Screenshot (fullscreen), exec, omarchy-cmd-screenshot fullscreen
+
+# Color picker
+bindd = ALT SHIFT, A, Color picker, exec, hyprpicker
 
 # Screen recording
 bindd = ALT SHIFT, R, Screen recording, exec, omarchy-cmd-screenrecord
@@ -125,9 +129,10 @@ uninstall() {
         return 0
     fi
 
-    # 移除我們加入的區塊
-    # 從 "# Custom screenshot and screen recording bindings" 到檔案結尾
-    if grep -q "Custom screenshot and screen recording bindings" "$HYPR_BINDINGS"; then
+    # 移除我們加入的區塊 (兼容新舊版本的標記)
+    if grep -q "Custom keybindings added by setup-keybindings.sh" "$HYPR_BINDINGS"; then
+        sed -i '/^# Custom keybindings added by setup-keybindings.sh/,$d' "$HYPR_BINDINGS"
+    elif grep -q "Custom screenshot and screen recording bindings" "$HYPR_BINDINGS"; then
         sed -i '/^# Custom screenshot and screen recording bindings/,$d' "$HYPR_BINDINGS"
         info "已從 $HYPR_BINDINGS 移除自訂快捷鍵"
     else
@@ -156,7 +161,7 @@ show_status() {
     echo -e "${CYAN}自訂快捷鍵設定狀態:${NC}"
 
     if [[ -f "$HYPR_BINDINGS" ]]; then
-        if grep -q "Custom screenshot and screen recording bindings" "$HYPR_BINDINGS"; then
+        if grep -q "Custom keybindings added by setup-keybindings.sh" "$HYPR_BINDINGS" || grep -q "Custom screenshot and screen recording bindings" "$HYPR_BINDINGS"; then
             echo -e "  ${GREEN}✓${NC} 自訂快捷鍵已安裝"
         else
             echo -e "  ${RED}✗${NC} 自訂快捷鍵未安裝"
@@ -210,6 +215,7 @@ install() {
     echo "  ALT SHIFT + F      → 全螢幕截圖"
     echo "  ALT SHIFT + R      → 開始螢幕錄影"
     echo "  ALT SHIFT CTRL + R → 開始螢幕錄影 (含攝影機)"
+    echo "  ALT SHIFT + A      → 顏色選擇器"
     echo '  CTRL + `           → 開啟剪貼簿管理員'
     echo
     echo "自動貼上已啟用：選取項目後會自動複製並貼上 (使用 Shift+Insert)"

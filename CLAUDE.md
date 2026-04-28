@@ -48,6 +48,46 @@ All scripts follow this pattern:
 4. **AUR helper fallback**: `paru` → `yay` → `sudo pacman`
 5. **No interactive prompts during install** (except confirmations for optional features)
 
+### ⚠️ Critical Shell Scripting Pitfalls (Hard Learned)
+
+**THESE WILL BREAK YOUR SCRIPTS IF YOU IGNORE THEM.**
+
+#### **sed Special Character - `&`**
+
+In `sed` replacement strings, `&` means **"insert the entire matched text here"**, NOT a literal ampersand. Always escape it:
+
+```bash
+# ❌ BROKEN - & expands to the whole match!
+sed -i 's/old=.*/new=foo && bar/' file
+
+# ✅ CORRECT - escape & as \&
+sed -i 's/old=.*/new=foo \&\& bar/' file
+```
+
+This was the root cause of the clipboard manager corruption bug. Each run doubled the content because `&&` expanded to the entire matched line.
+
+#### **grep Whitespace Regex - Use `-E` for `\s`**
+
+`\s` (whitespace) only works in extended regex mode. Always use `grep -E` when you need `\s`:
+
+```bash
+# ❌ UNRELIABLE - may match literal "\s" on some systems
+grep -q '^command\s*=' file
+
+# ✅ CORRECT - extended regex mode
+grep -Eq '^command\s*=' file
+```
+
+#### **Idempotency is Mandatory - Test It**
+
+**Always run your script twice in a row** and verify the config file is identical both times:
+```bash
+./script.sh -i && md5sum ~/.config/target.conf  # Run 1
+./script.sh -i && md5sum ~/.config/target.conf  # Run 2 - MUST match!
+```
+
+If the checksums differ, you have a stacking bug.
+
 ## Common Development Commands
 
 ### Run Scripts
@@ -99,16 +139,29 @@ When creating a new `setup-xxx.sh`:
 1. Copy the structure from existing scripts (helpers, check_package, install/uninstall functions)
 2. Make it idempotent (check if already configured)
 3. Add proper cleanup in `-u` mode
-4. Register it in `setup-all.sh`:
+4. **Pass the QA checklist below**
+5. Register it in `setup-all.sh`:
    - Add to menu (both install and uninstall sections)
    - Add case statement entries
    - Add to `install_all()` and `uninstall_all()`
    - Add status check in `show_status()`
 
+#### **Mandatory QA Checklist for New Scripts**
+
+Before merging any new script:
+
+- [ ] **Idempotency test**: Run `-i` twice, verify config file unchanged
+- [ ] **sed safety**: All `&` in sed replacements are escaped as `\&`
+- [ ] **grep safety**: All `\s` in grep use `-E` flag
+- [ ] **Status check works**: `-s` correctly detects when installed
+- [ ] **Uninstall works**: `-u` completely removes all traces
+- [ ] **No duplicates**: Verify no duplicate lines in config after re-runs
+
 ## Important Files to Reference
 
 - **README.md** - Contains detailed rationale for each design choice
-- **`setup-keybindings.sh`** - Good example of proper script structure
+- **`setup-keybindings.sh`** - Contains the clipboard `sed &` bug fix reference; see "Pitfalls" below
+- **`setup-fonts.sh` / `setup-distrobox.sh`** - Good examples of proper guard patterns
 - **`setup-all.sh`** - Shows how all scripts are orchestrated
 
 ## Dependencies

@@ -113,6 +113,7 @@
 | `Alt+Shift+E` | 視窗截圖 |
 | `Alt+Shift+F` | 全螢幕截圖 |
 | `Alt+Shift+R` | 螢幕錄影 |
+| `Alt+Shift+A` | 顏色選擇器 |
 | `Ctrl+\`` | 開啟剪貼簿管理員 |
 
 - **自動貼上**：選取剪貼項目後自動複製並貼上（使用 Shift+Insert）
@@ -172,6 +173,19 @@
 | `-s`, `--status` | 顯示目前狀態 |
 | `-h`, `--help` | 顯示說明 |
 
+### 新增腳本 QA 檢查清單 ✅
+
+新增任何會修改設定檔的腳本之前，請務必先通過這份清單：
+
+- [ ] **冪等性測試**: 連續執行 `-i` 兩次，確認第二次執行後設定檔內容完全不變
+- [ ] **sed 安全性**: 所有 `sed` 取代字串中的 `&` 都必須跳脫為 `\&`
+- [ ] **grep 安全性**: 所有包含 `\s` 的 grep 都必須使用 `-E` flag
+- [ ] **狀態檢查**: `-s` 參數能正確判斷是否已安裝
+- [ ] **移除功能**: `-u` 能完全清理所有新增的內容
+- [ ] **無重複**: 連續執行兩次不會在設定檔中產生重複行
+
+---
+
 ### 新增腳本
 
 只要在開頭加上 metadata 註解，就會自動出現在 `setup-all.sh` 選單中：
@@ -213,6 +227,68 @@ main "$@"
 - **記錄函數**：`info()`, `warn()`, `error()`, `detail()`, `header()` - 自動套用顏色
 - **套件管理**：`check_package()`, `install_package()` - 自動偵測 paru/yay/sudo
 - **工具函數**：`config_contains()`, `ensure_dir()`, `create_backup()`
+
+## ⚠️ 已知陷阱與最佳實務 (Bash Pitfalls)
+
+### `sed` 中的 `&` 是特殊字元，不是字面 ampersand
+
+**曾造成的 bug**: `setup-keybindings.sh` 剪貼簿設定指數級腐敗
+
+```bash
+# ❌ 錯誤寫法 - 會造成指數級堆疊腐敗！
+sed -i 's/^command=.*$/command = "wl-copy && sleep 0.2"/' file
+
+# ✅ 正確寫法
+sed -i 's/^command=.*$/command = "wl-copy \&\& sleep 0.2"/' file
+```
+
+**為什麼**: 在 `sed` 的取代字串中，`&` 代表「整個比對到的內容」，不是字面的 `&`。每次執行都會把舊內容塞進新字串中，指數級膨脹。
+
+---
+
+### `grep \s` 需要 `-E` flag 才可靠
+
+```bash
+# ❌ 不可靠 - 基本 POSIX grep 不支援 \s
+grep -q '^command\s*=' file
+
+# ✅ 正確寫法
+grep -Eq '^command\s*=' file
+```
+
+---
+
+### 冪等性 (Idempotency) 檢查清單
+
+任何會修改設定檔的腳本，**跑兩次應該得到完全相同的結果**：
+
+| ✅ 正確做法 | ❌ 錯誤做法 |
+|-------------|-------------|
+| 先檢查是否已存在 → 才修改 | 永遠直接 append (`>>`) 不檢查 |
+| `cat > file` (覆蓋寫入) | `cat >> file` (累加寫入) |
+| `sed -i 's/old/new/'` 有 guard check | 裸 `sed -i` 不檢查 |
+| 修改後 `cat` 內容驗證 | 修改後就不管了 |
+
+---
+
+### 剪貼簿設定除錯流程
+
+```bash
+# 1. 檢查設定檔是否正常
+grep '^command' ~/.config/elephant/clipboard.toml
+# 應顯示: command = 'wl-copy && sleep 0.2 && wtype -M shift -k Insert -m shift'
+
+# 2. 確認服務執行中
+pgrep -a elephant && pgrep -a walker
+
+# 3. 有問題就重啟
+omarchy-restart-walker
+
+# 4. 驗證腳本冪等性
+cd ~/omarchy-custom-scripts
+./setup-keybindings.sh -i   # 第一次
+./setup-keybindings.sh -i   # 第二次 → 設定檔內容必須完全相同
+```
 
 ## 授權
 
