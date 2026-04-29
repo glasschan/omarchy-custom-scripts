@@ -37,7 +37,7 @@ test_script() {
 
     # 第一次執行
     info "[1/3] 第一次執行..."
-    "./$script" -i 2>&1 | sed 's/^/  /'
+    "./$script" -i </dev/null 2>&1 | sed 's/^/  /'
 
     # 記錄第一次後的狀態
     if [[ -f "$config_file" ]]; then
@@ -51,7 +51,7 @@ test_script() {
     # 第二次執行
     echo ""
     info "[2/3] 第二次執行..."
-    "./$script" -i 2>&1 | sed 's/^/  /'
+    "./$script" -i </dev/null 2>&1 | sed 's/^/  /'
 
     # 記錄第二次後的狀態
     if [[ -f "$config_file" ]]; then
@@ -83,7 +83,7 @@ test_script() {
         mv "$backup_file" "$config_file"
     elif [[ -f "$config_file" ]]; then
         # 如果是測試時建立的，嘗試用 -u 移除
-        "./$script" -u 2>&1 | sed 's/^/  /'
+        "./$script" -u </dev/null 2>&1 | sed 's/^/  /'
     fi
 
     echo ""

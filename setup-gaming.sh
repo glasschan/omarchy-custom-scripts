@@ -208,11 +208,13 @@ install() {
     info "  適用於: Skul, Hollow Knight, Celeste, 以及大部分 Unity/SDL 遊戲"
     echo ""
 
-    read -p "要複製啟動選項到剪貼簿嗎？ (y/N): " copy_confirm
-    if [[ "$copy_confirm" == "y" || "$copy_confirm" == "Y" ]]; then
-        echo -n "gamescope -W 1920 -H 1080 -f -- %command%" | wl-copy
-        info "已複製到剪貼簿！"
-        info "現在可以在 Steam 中貼上到遊戲的啟動選項"
+    if [[ -t 0 ]]; then
+        read -p "要複製啟動選項到剪貼簿嗎？ (y/N): " copy_confirm
+        if [[ "$copy_confirm" == "y" || "$copy_confirm" == "Y" ]]; then
+            echo -n "gamescope -W 1920 -H 1080 -f -- %command%" | wl-copy
+            info "已複製到剪貼簿！"
+            info "現在可以在 Steam 中貼上到遊戲的啟動選項"
+        fi
     fi
 }
 
