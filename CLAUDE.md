@@ -123,6 +123,15 @@ There is no formal test suite. Test by:
 1. Running the script with `-i` on a fresh Omarchy system
 2. Running with `-u` to verify clean removal
 3. Running the same command twice to verify idempotency
+4. Using the idempotency test script:
+
+```bash
+# Test all scripts
+./test-idempotency.sh
+
+# Test a single script
+./test-idempotency.sh setup-keybindings.sh
+```
 
 ## Key Implementation Details
 

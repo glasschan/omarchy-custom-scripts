@@ -157,6 +157,7 @@
 ├── setup-gaming.sh          # 遊戲相容性設定
 ├── setup-distrobox.sh       # Distrobox 容器工具
 ├── fix-chrome-keyring.sh    # Chrome keyring 密碼彈窗修復
+├── test-idempotency.sh      # 冪等性測試工具
 └── setup-rime-scj.sh        # [舊版] 相容包裝
 ```
 
@@ -220,6 +221,18 @@ main() {
 }
 
 main "$@"
+```
+
+### 冪等性測試 (`test-idempotency.sh`)
+
+自動驗證所有腳本的冪等性，確保執行兩次後設定檔內容完全相同：
+
+```bash
+# 測試所有腳本
+./test-idempotency.sh
+
+# 測試單一腳本
+./test-idempotency.sh setup-keybindings.sh
 ```
 
 ### 共用函式 (`lib/common.sh`)

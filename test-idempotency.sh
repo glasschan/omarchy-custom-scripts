@@ -134,22 +134,26 @@ main() {
             setup-input.sh)
                 test_script "setup-input.sh" "$HOME/.local/share/fcitx5/rime/scj6.custom.yaml"
                 ;;
+            setup-keyboard-swap.sh)
+                test_script "setup-keyboard-swap.sh" "$HOME/.config/hypr/input.conf"
+                ;;
             *)
                 error "未知腳本: $1"
                 ;;
         esac
     else
         # 測試所有腳本
-        warn "全測試需要 sudo 權限並會修改系統設定"
-        read -p "確定要繼續嗎？(y/N): " confirm
-        if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
-            info "已取消"
-            exit 0
-        fi
-
-        # 這裡可以加入全測試
-        info "全測試模式尚未實作，請指定單一腳本測試"
-        exit 1
+        for script in setup-fonts.sh setup-input.sh setup-macos-input.sh setup-keyboard-swap.sh setup-keybindings.sh setup-distrobox.sh setup-gaming.sh; do
+            case "$script" in
+                setup-keybindings.sh) test_script "$script" "$HOME/.config/elephant/clipboard.toml" ;;
+                setup-fonts.sh) test_script "$script" "$HOME/.config/chromium-flags.conf" ;;
+                setup-distrobox.sh) test_script "$script" "$HOME/.bashrc" ;;
+                setup-gaming.sh) test_script "$script" "$HOME/.config/hypr/envs.conf" ;;
+                setup-macos-input.sh) test_script "$script" "$HOME/.config/hypr/input.conf" ;;
+                setup-keyboard-swap.sh) test_script "$script" "$HOME/.config/hypr/input.conf" ;;
+                setup-input.sh) test_script "$script" "$HOME/.local/share/fcitx5/rime/scj6.custom.yaml" ;;
+            esac
+        done
     fi
 
     # 顯示總結
