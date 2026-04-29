@@ -36,7 +36,7 @@ All scripts follow this pattern:
 | `setup-macos-input.sh` | macOS-like keyboard/trackpad behavior | `~/.config/hypr/input.conf` |
 | `setup-keyboard-swap.sh` | Swap Super/Alt on built-in keyboard (optional) | `~/.config/hypr/input.conf` |
 | `setup-distrobox.sh` | Distrobox + DistroShelf container tools | `~/.bashrc`, `~/.config/distrobox/distrobox.ini` |
-| `setup-keybindings.sh` | Custom screenshot/recording/clipboard bindings | `~/.config/hypr/bindings.conf` |
+| `setup-keybindings.sh` | Custom screenshot/recording/clipboard bindings | `~/.config/hypr/bindings.conf`, `~/.config/elephant/clipboard.toml` |
 | `fix-chrome-keyring.sh` | Fix Chrome keyring password popup | `~/.local/share/keyrings/*` |
 | `setup-gaming.sh` | Game compatibility for Wayland/Hyprland | `~/.config/hypr/envs.conf`, `~/.config/hypr/games.conf`, installs `gamescope` |
 
@@ -65,6 +65,18 @@ sed -i 's/old=.*/new=foo \&\& bar/' file
 ```
 
 This was the root cause of the clipboard manager corruption bug. Each run doubled the content because `&&` expanded to the entire matched line.
+
+#### **Wayland Input Tools - Use `hyprctl` over `wtype`**
+
+`wtype` sends keystrokes via the Wayland protocol, which requires a focused window. When a launcher like walker closes after item selection, there's a focus transition where `wtype` can't deliver keystrokes. Use `hyprctl dispatch sendshortcut` instead — it works at the compositor level:
+
+```bash
+# ❌ UNRELIABLE - fails during focus transitions
+command = 'wl-copy && sleep 0.2 && wtype -M shift -k Insert -m shift'
+
+# ✅ CORRECT - compositor-level, no focus dependency
+command = 'wl-copy && hyprctl dispatch sendshortcut "SHIFT, Insert,"'
+```
 
 #### **grep Whitespace Regex - Use `-E` for `\s`**
 

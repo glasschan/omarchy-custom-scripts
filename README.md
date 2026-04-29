@@ -116,7 +116,7 @@
 | `Alt+Shift+A` | 顏色選擇器 |
 | `Ctrl+\`` | 開啟剪貼簿管理員 |
 
-- **自動貼上**：選取剪貼項目後自動複製並貼上（使用 Shift+Insert）
+- **自動貼上**：選取剪貼項目後自動複製並貼上（透過 `hyprctl dispatch sendshortcut`）
 - **Pin 功能**：重要項目可固定在列表頂部
 
 ### setup-gaming.sh — 遊戲相容性
@@ -276,13 +276,13 @@ grep -Eq '^command\s*=' file
 ```bash
 # 1. 檢查設定檔是否正常
 grep '^command' ~/.config/elephant/clipboard.toml
-# 應顯示: command = 'wl-copy && sleep 0.2 && wtype -M shift -k Insert -m shift'
+# 應顯示: command = 'wl-copy && hyprctl dispatch sendshortcut "SHIFT, Insert,"'
 
 # 2. 確認服務執行中
 pgrep -a elephant && pgrep -a walker
 
 # 3. 有問題就重啟
-omarchy-restart-walker
+systemctl --user restart elephant
 
 # 4. 驗證腳本冪等性
 cd ~/omarchy-custom-scripts
