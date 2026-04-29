@@ -52,7 +52,7 @@ discover_scripts() {
         scripts+=("$basename")
     done
     # Add standalone scripts
-    for script in "$SCRIPT_DIR"/fix-chrome-keyring.sh; do
+    for script in "$SCRIPT_DIR"/fix-chrome-keyring.sh "$SCRIPT_DIR"/fix-spotify-scale.sh; do
         [[ -f "$script" ]] && scripts+=("$(basename "$script")")
     done
     echo "${scripts[@]}"
