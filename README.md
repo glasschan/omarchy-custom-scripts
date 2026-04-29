@@ -235,6 +235,8 @@ main "$@"
 ./test-idempotency.sh setup-keybindings.sh
 ```
 
+**為什麼需要？** 這個專案的核心設計原則是「可重複執行」，但 bash 腳本很容易因為 `sed` 的 `&` 展開、`echo >>` 累加寫入、TOML section 解析等問題，導致每次執行都改變設定檔內容。這些 bug 不會立刻出錯，但會讓設定檔指數級膨脹或損壞（例如之前剪貼簿 `command` 欄位每次執行都重複堆疊的問題）。這個測試確保每次修改腳本後，不會意外引入堆疊 bug。
+
 ### 共用函式 (`lib/common.sh`)
 
 - **記錄函數**：`info()`, `warn()`, `error()`, `detail()`, `header()` - 自動套用顏色
