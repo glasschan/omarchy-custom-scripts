@@ -21,12 +21,6 @@ source "$SCRIPT_DIR/lib/common.sh"
 check_dependencies() {
     info "檢查依賴..."
 
-    if ! command -v wtype &> /dev/null; then
-        error "wtype 未安裝，請先安裝："
-        echo "  yay -S wtype"
-        exit 1
-    fi
-
     if ! command -v elephant &> /dev/null; then
         error "elephant 未安裝，請先安裝 elephant-clipboard"
         exit 1
@@ -48,25 +42,19 @@ setup_elephant_clipboard() {
         info "建立新的 clipboard.toml..."
 cat > "$CLIPBOARD_CONFIG" << 'EOF'
 auto_cleanup = 0
-command = "wl-copy && sleep 0.2 && wtype -M shift -k Insert -m shift"
+command = 'wl-copy && hyprctl dispatch sendshortcut "SHIFT, Insert,"'
 ignore_symbols = true
 image_editor_cmd = ''
 max_items = 100
 pinned_on_top = true
 text_editor_cmd = ''
-
-[Config]
-hide_from_providerlist = false
-icon = 'user-bookmarks'
-min_score = 30
-name_pretty = ''
 EOF
     else
         info "更新現有 clipboard.toml..."
         if grep -Eq '^command\s*=' "$CLIPBOARD_CONFIG"; then
-            sed -i 's/^command\s*=.*$/command = "wl-copy \&\& sleep 0.2 \&\& wtype -M shift -k Insert -m shift"/' "$CLIPBOARD_CONFIG"
+            sed -i 's/^command\s*=.*$/command = '"'"'wl-copy \&\& hyprctl dispatch sendshortcut "SHIFT, Insert,"'"'"'/' "$CLIPBOARD_CONFIG"
         else
-            echo 'command = "wl-copy && sleep 0.2 && wtype -M shift -k Insert -m shift"' >> "$CLIPBOARD_CONFIG"
+            echo 'command = '"'"'wl-copy && hyprctl dispatch sendshortcut "SHIFT, Insert,"'"'"'' >> "$CLIPBOARD_CONFIG"
         fi
         if grep -Eq '^pinned_on_top\s*=' "$CLIPBOARD_CONFIG"; then
             sed -i 's/^pinned_on_top\s*=.*$/pinned_on_top = true/' "$CLIPBOARD_CONFIG"
@@ -142,7 +130,7 @@ uninstall() {
     # 還原 elephant 設定 - 恢復成預設 command
     CLIPBOARD_CONFIG="$HOME/.config/elephant/clipboard.toml"
     if [ -f "$CLIPBOARD_CONFIG" ]; then
-        if grep -q 'wtype' "$CLIPBOARD_CONFIG"; then
+        if grep -q 'hyprctl' "$CLIPBOARD_CONFIG"; then
             sed -i "s/^command\s*=.*$/command = 'wl-copy'/" "$CLIPBOARD_CONFIG"
             info "已還原 elephant clipboard 預設設定"
         fi
@@ -171,7 +159,7 @@ show_status() {
     fi
 
     if [[ -f "$CLIPBOARD_CONFIG" ]]; then
-        if grep -q 'wtype' "$CLIPBOARD_CONFIG"; then
+        if grep -q 'hyprctl' "$CLIPBOARD_CONFIG"; then
             echo -e "  ${GREEN}✓${NC} Elephant 自動貼上已設定"
         else
             echo -e "  ${YELLOW}!${NC} Elephant 已安裝但自動貼上未設定"
@@ -218,7 +206,7 @@ install() {
     echo "  ALT SHIFT + A      → 顏色選擇器"
     echo '  CTRL + `           → 開啟剪貼簿管理員'
     echo
-    echo "自動貼上已啟用：選取項目後會自動複製並貼上 (使用 Shift+Insert)"
+    echo "自動貼上已啟用：選取項目後會自動複製並貼上 (透過 hyprctl)"
     echo "Pin 功能已開啟：釘選項目會固定在列表頂部"
     echo
 }
