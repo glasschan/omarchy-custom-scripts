@@ -2,12 +2,13 @@
 
 # setup-looknfeel.sh
 # Hyprland 視覺與動畫設定
-# - 漸層邊框 (橘紅色)
-# - 圓角視窗
-# - 視窗陰影 + 毛玻璃
-# - 流暢動畫曲線
+# - macOS 風格白色透明邊框
+# - 圓角視窗 (10px)
+# - 大範圍柔和陰影 (macOS 風格)
+# - 明亮毛玻璃效果 (vibrancy)
+# - 快速彈簧動畫 (macSpring)
 # Category: 系統設定
-# Description: Hyprland Look & Feel (圓角、陰影、動畫、漸層邊框)
+# Description: Hyprland Look & Feel (macOS 風格佈景)
 
 SCRIPT_NAME="$(basename "$0")"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -49,80 +50,137 @@ install() {
 cat > "$HYPR_LOOKNFEEL" << 'EOF'
 # Custom looknfeel settings by setup-looknfeel.sh
 
-# ── Colors ──────────────────────────────────────────
-$activeBorderColor = rgba(f38d70ee) rgba(fd6883ee) 45deg
-$inactiveBorderColor = rgba(595959aa)
+# macOS-like look'n'feel for Omarchy Hyprland
+#
+# Omarchy defaults being overridden:
+#   gaps_in=5, gaps_out=10, border_size=2, orange active border, dark gray inactive border
+#   rounding=0, shadow(range=2, render_power=3), blur(brightness=0.60, contrast=0.75)
+#   animations: very slow (windows 3.79s, fade 1.73s)
+# Theme: col.active_border = rgb(faa968) (golden/orange accent)
 
-# ── General ─────────────────────────────────────────
+# -- Border colors --
+# macOS has no colored borders. Focused window distinction comes from shadow depth.
+# These are nearly-transparent white for minimal tiling separation.
+$macBorder = rgba(ffffff18)        # ~9% opacity white — barely visible
+$macBorderInactive = rgba(ffffff0d) # ~5% opacity white — even more subtle
+
+# https://wiki.hyprland.org/Configuring/Variables/#general
 general {
-    gaps_in = 5
-    gaps_out = 10
-    border_size = 2
+    # Gaps: keep Omarchy defaults (5 inner / 10 outer). Clean and moderate.
+    # gaps_in = 5
+    # gaps_out = 10
 
-    col.active_border = $activeBorderColor
-    col.inactive_border = $inactiveBorderColor
+    # Border: 1px hairline (down from 2). macOS has 0, but 1px helps in tiling.
+    border_size = 5
 
+    # Border colors: nearly invisible, overriding the orange theme.
+    col.active_border = $macBorder
+    col.inactive_border = $macBorderInactive
+
+    # Resize by dragging window edges/corners — standard macOS behavior.
     resize_on_border = true
-    allow_tearing = false
-    layout = dwindle
 }
 
-# ── Decoration ──────────────────────────────────────
+# https://wiki.hyprland.org/Configuring/Variables/#decoration
 decoration {
+    # Rounding: 10px (macOS standard for most windows)
     rounding = 10
 
-    dim_inactive = true
-    dim_strength = 0.25
-
+    # Shadow: large and soft — the primary focus indicator in macOS.
     shadow {
         enabled = true
-        range = 4
-        render_power = 3
-        color = rgba(1a1a1aee)
+        range = 20            # was 2. Large spread for soft, prominent shadow.
+        render_power = 4      # was 3. Max quality for smoothest falloff.
+        color = rgba(00000050) # was rgba(1a1a1aee). Lighter, more translucent.
     }
 
+    # Blur: bright and clean — macOS vibrancy preserves content brightness.
     blur {
         enabled = true
-        size = 3
-        passes = 3
+        size = 4              # was 2. Smoother spread.
+        passes = 3            # was 2. Better quality.
         special = true
-        brightness = 0.60
-        contrast = 0.75
+        brightness = 0.90     # was 0.60. Much brighter, closer to macOS vibrancy.
+        contrast = 0.85       # was 0.75. Sharper text through blur.
+        vibrancy = 0.10       # was unset. Subtle saturation boost like macOS.
+        noise = 0.0           # macOS blur is clean.
     }
+
+    # Dim inactive: THE key macOS-like setting.
+    # Unfocused windows get subtly darkened so the active one pops.
+    dim_inactive = true
+    dim_strength = 0.15      # 0.0 = none, 1.0 = full black. Tune 0.10–0.20.
+
+    # Opacity: both 1.0 at decoration level. The tag-based opacity rules
+    # in windows.conf (0.97/0.90) still apply, but dim_inactive is the
+    # primary focus indicator here — exactly how macOS does it.
+    active_opacity = 1.0
+    inactive_opacity = 1.0
 }
 
-# ── Animations ──────────────────────────────────────
+# https://wiki.hyprland.org/Configuring/Variables/#animations
 animations {
+    # macOS animations are snappy spring-based, 200–400ms.
+    # Omarchy defaults are 3–4 seconds — we override all of them.
+    # Speed unit: deciseconds (3 = 300ms).
     enabled = yes
 
-    bezier = easeOutQuint,0.23,1,0.32,1
-    bezier = easeInOutCubic,0.65,0.05,0.36,1
-    bezier = linear,0,0,1,1
-    bezier = almostLinear,0.5,0.5,0.75,1.0
-    bezier = quick,0.15,0,0.1,1
+    # Bezier curves:
+    #   macSpring  — slight overshoot like macOS spring physics
+    #   macOut     — clean ease-out for exits (no overshoot on close)
+    #   macFade    — gentle ease-out for fades
+    bezier = macSpring, 0.22, 1.05, 0.36, 1
+    bezier = macOut, 0.16, 1, 0.3, 1
+    bezier = macFade, 0.25, 0.1, 0.25, 1
 
-    animation = global, 1, 8, default
-    animation = border, 1, 5.39, easeOutQuint
-    animation = windows, 1, 5, easeOutQuint
-    animation = windowsIn, 1, 3.5, easeOutQuint, popin 87%
-    animation = windowsOut, 1, 1.49, linear, popin 87%
-    animation = fadeIn, 1, 1.73, almostLinear
-    animation = fadeOut, 1, 1.46, almostLinear
-    animation = fade, 1, 3.03, quick
-    animation = layers, 1, 3.81, easeOutQuint
-    animation = layersIn, 1, 4, easeOutQuint, fade
-    animation = layersOut, 1, 1.5, linear, fade
-    animation = fadeLayersIn, 1, 1.79, almostLinear
-    animation = fadeLayersOut, 1, 1.39, almostLinear
-    animation = workspaces, 0, 0, ease
-    animation = specialWorkspace, 1, 3, easeOutQuint, slidevert
+    # Global fallback: 300ms
+    animation = global, 1, 3, default
+
+    # Windows: ~300ms with spring. was 3.79s.
+    animation = windows, 1, 3, macSpring
+
+    # Window open: scale-in with bounce. was 4.1s.
+    animation = windowsIn, 1, 3, macSpring, popin 87%
+
+    # Window close: slightly faster. was 1.49s.
+    animation = windowsOut, 1, 2, macOut, popin 87%
+
+    # Fades: quick opacity transitions. were ~1.5–1.7s.
+    animation = fadeIn, 1, 2, macFade
+    animation = fadeOut, 1, 1.5, macFade
+    animation = fade, 1, 2, macFade
+
+    # Border color transition. was 5.39s.
+    animation = border, 1, 2, macFade
+
+    # Layers (notifications, bars, etc.). was 3.81s.
+    animation = layers, 1, 3, macSpring
+    animation = layersIn, 1, 3, macSpring, fade
+    animation = layersOut, 1, 2, macOut, fade
+    animation = fadeLayersIn, 1, 2, macFade
+    animation = fadeLayersOut, 1, 1.5, macFade
+
+    # Workspace switch: subtle slide. was instant.
+    animation = workspaces, 1, 3, macFade, slide
+
+    # Special workspace (scratchpad). was 3s.
+    animation = specialWorkspace, 1, 3, macOut, slidevert
 }
 
-# ── Layout ──────────────────────────────────────────
-# layout {
-#     # Avoid overly wide single-window layouts on wide screens
-#     # single_window_aspect_ratio = 4 3
-# }
+# https://wiki.hyprland.org/Configuring/Dwindle-Layout/
+dwindle {
+    # Pseudotile: kept enabled (Omarchy default).
+    # Windows float within their tile rather than stretching edge-to-edge —
+    # this is more macOS-like than filling the entire tile area.
+    # Toggle with Super+P if you need a window to fill its tile.
+    # pseudotile = true
+}
+
+# Group/tab borders must match the main window border style.
+group {
+    col.border_active = $macBorder
+    col.border_inactive = $macBorderInactive
+}
 EOF
 
     info "Look & Feel 設定已套用至 $HYPR_LOOKNFEEL"
@@ -134,11 +192,12 @@ EOF
     info "=============================="
     echo
     echo "套用的設定："
-    echo "  🎨 漸層邊框 (橘紅色)"
-    echo "  🪟 視窗圓角 (10px)"
-    echo "  💫 毛玻璃效果 (強化版)"
-    echo "  🌑 未聚焦視窗暗化"
-    echo "  ✨ 流暢動畫曲線"
+    echo "  🍎 macOS 風格佈景主題"
+    echo "  🤍 近乎透明的白色邊框"
+    echo "  🖼️  大範圍柔和陰影 (焦點辨識)"
+    echo "  ✨ 明亮毛玻璃 (macOS vibrancy)"
+    echo "  🌑 未聚焦視窗暗化 (細緻版)"
+    echo "  ⚡ 快速彈簧動畫 (macSpring)"
     echo "  🖱️  邊框拖曳調整大小"
     echo
 }
