@@ -3,10 +3,12 @@
 # setup-keybindings.sh
 # 設定自訂快捷鍵 - 截圖、錄影、剪貼簿管理
 # - ALT SHIFT + Q: 區域截圖
-# - ALT SHIFT + F: 視窗截圖
+# - ALT SHIFT + E: 視窗截圖
+# - ALT SHIFT + F: 全螢幕截圖
 # - ALT SHIFT + R: 螢幕錄影
 # - ALT SHIFT CTRL + R: 螢幕錄影 (含攝影機)
 # - ALT SHIFT + A: 顏色選擇器
+# - ALT SHIFT + O: OCR 文字辨識
 # - CTRL + `: 開啟 elephant 剪貼簿管理員
 # Category: 快捷鍵
 # Description: 設定截圖/錄影/剪貼簿快捷鍵
@@ -23,6 +25,11 @@ check_dependencies() {
 
     if ! command -v elephant &> /dev/null; then
         error "elephant 未安裝，請先安裝 elephant-clipboard"
+        exit 1
+    fi
+
+    if ! tesseract --list-langs 2>/dev/null | grep -q "chi_tra"; then
+        error "tesseract-data-chi_tra 未安裝，請先安裝以使用 OCR 功能"
         exit 1
     fi
 
@@ -87,16 +94,19 @@ setup_hypr_keybindings() {
 cat >> "$HYPR_BINDINGS" << 'EOF'
 
 # Custom keybindings added by setup-keybindings.sh
-bindd = ALT SHIFT, Q, Screenshot (region), exec, omarchy-cmd-screenshot region
-bindd = ALT SHIFT, E, Screenshot (window), exec, omarchy-cmd-screenshot windows
-bindd = ALT SHIFT, F, Screenshot (fullscreen), exec, omarchy-cmd-screenshot fullscreen
+bindd = ALT SHIFT, Q, Screenshot (region), exec, omarchy-capture-screenshot region
+bindd = ALT SHIFT, E, Screenshot (window), exec, omarchy-capture-screenshot windows
+bindd = ALT SHIFT, F, Screenshot (fullscreen), exec, omarchy-capture-screenshot fullscreen
 
 # Color picker
 bindd = ALT SHIFT, A, Color picker, exec, hyprpicker
 
 # Screen recording
-bindd = ALT SHIFT, R, Screen recording, exec, omarchy-cmd-screenrecord
-bindd = ALT SHIFT CTRL, R, Screen recording (with camera), exec, omarchy-cmd-screenrecord --with-cam
+bindd = ALT SHIFT, R, Screen recording, exec, omarchy-capture-screenrecording
+bindd = ALT SHIFT CTRL, R, Screen recording (with camera), exec, omarchy-capture-screenrecording --with-webcam
+
+# OCR text extraction
+bindd = ALT SHIFT, O, Extract text (OCR), exec, omarchy-capture-text-extraction-zh
 
 # Clipboard manager (elephant)
 bindd = CONTROL, GRAVE, Clipboard, exec, omarchy-launch-walker -m clipboard
@@ -204,6 +214,7 @@ install() {
     echo "  ALT SHIFT + R      → 開始螢幕錄影"
     echo "  ALT SHIFT CTRL + R → 開始螢幕錄影 (含攝影機)"
     echo "  ALT SHIFT + A      → 顏色選擇器"
+    echo "  ALT SHIFT + O      → OCR 文字辨識 (中英混合)"
     echo '  CTRL + `           → 開啟剪貼簿管理員'
     echo
     echo "自動貼上已啟用：選取項目後會自動複製並貼上 (透過 hyprctl)"
