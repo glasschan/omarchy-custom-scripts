@@ -99,7 +99,7 @@ bindd = ALT SHIFT, E, Screenshot (window), exec, omarchy-capture-screenshot wind
 bindd = ALT SHIFT, F, Screenshot (fullscreen), exec, omarchy-capture-screenshot fullscreen
 
 # Color picker
-bindd = ALT SHIFT, A, Color picker, exec, hyprpicker
+bindd = ALT SHIFT, A, Color picker, exec, hyprpicker -a
 
 # Screen recording
 bindd = ALT SHIFT, R, Screen recording, exec, omarchy-capture-screenrecording
