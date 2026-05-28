@@ -84,9 +84,32 @@ setup_hypr_keybindings() {
         exit 1
     fi
 
-    # 檢查是否已經加入過 (兼容新舊版本的標記)
-    if grep -q "Custom keybindings added by setup-keybindings.sh" "$HYPR_BINDINGS" || grep -q "Custom screenshot and screen recording bindings" "$HYPR_BINDINGS"; then
-        warn "自訂快捷鍵似乎已經加入，跳過重複新增"
+    # Step 1: Replace old/broken command names (self-heal from previous buggy version)
+    if grep -q "omarchy-cmd-screenshot" "$HYPR_BINDINGS"; then
+        info "發現舊版截圖命令，正在修復..."
+        sed -i 's/omarchy-cmd-screenshot/omarchy-capture-screenshot/g' "$HYPR_BINDINGS"
+    fi
+    if grep -q "omarchy-cmd-screenrecord" "$HYPR_BINDINGS"; then
+        info "發現舊版錄影命令，正在修復..."
+        sed -i 's/omarchy-cmd-screenrecord/omarchy-capture-screenrecording/g' "$HYPR_BINDINGS"
+    fi
+    if grep -Eq "screenrecord.*--with-cam" "$HYPR_BINDINGS"; then
+        info "修復錄影參數..."
+        sed -i 's/--with-cam/--with-webcam/g' "$HYPR_BINDINGS"
+    fi
+
+    # Step 2: Add missing OCR binding if not present
+    if ! grep -q "omarchy-capture-text-extraction-zh" "$HYPR_BINDINGS"; then
+        info "新增 OCR 快捷鍵..."
+        sed -i '/^# Clipboard manager (elephant)/i\
+# OCR text extraction\
+bindd = ALT SHIFT, O, Extract text (OCR), exec, omarchy-capture-text-extraction-zh\
+' "$HYPR_BINDINGS"
+    fi
+
+    # Step 3: Check if already added (by marker)
+    if grep -q "Custom keybindings added by setup-keybindings.sh" "$HYPR_BINDINGS"; then
+        info "自訂快捷鍵已存在，無需重複新增"
         return
     fi
 
