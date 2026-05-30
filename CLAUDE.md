@@ -42,7 +42,7 @@ All scripts follow this pattern:
 
 ### Common Patterns Across All Scripts
 
-1. **Helper functions at top**: `info()`, `warn()`, `error()`, `detail()`, `header()` - all use ANSI colors
+ 1. **Helper functions at top**: `info()`, `warn()`, `error()`, `detail()`, `header()` - all use ANSI colors
 2. **Idempotent checks**: Always check if already installed/configured before making changes
 3. **Package detection**: Uses `pacman -Q pkgname` to check for existing packages
 4. **AUR helper fallback**: `paru` → `yay` → `sudo pacman`
@@ -151,7 +151,7 @@ There is no formal test suite. Test by:
 
 ### Game Compatibility
 - `gamescope` is the standard fix for Unity/SDL games not showing windows on Wayland
-- `SDL_VIDEODRIVER=x11` environment variable forces XWayland for games
+- Omarchy v3.7.0 removed `SDL_VIDEODRIVER` (it broke Proton games); games now auto-detect
 - Steam launch option: `gamescope -W 1920 -H 1080 -f -- %command%`
 
 ## Adding New Features

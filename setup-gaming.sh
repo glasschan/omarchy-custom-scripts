@@ -24,11 +24,11 @@ setup_gamescope() {
     detail "Steam 遊戲啟動選項: gamescope -W 1920 -H 1080 -f -- %command%"
 }
 
-# 建立環境變數設定
+# 建立 gamescope 相關設定（不含 X11 env vars — Omarchy v3.7.0 已移除 SDL_VIDEODRIVER）
 setup_envs_conf() {
     info "檢查遊戲環境變數設定..."
 
-    if config_contains "$ENVS_CONF" "SDL_VIDEODRIVER"; then
+    if config_contains "$ENVS_CONF" "PROTON_USE_WINED3D"; then
         info "遊戲環境變數已設定，跳過"
         return 0
     fi
@@ -39,19 +39,12 @@ setup_envs_conf() {
     cat >> "$ENVS_CONF" << 'EOF'
 
 # 遊戲相容性設定
-# 強制 SDL 遊戲使用 X11/XWayland（解決 Unity 遊戲無視窗問題）
-env = SDL_VIDEODRIVER,x11,wayland
-
-# Unity 遊戲修復
-env = UNITY_FORCE_DISPLAY,0
-env = UNITY_DISABLE_XRANDR,1
-
-# Proton/Steam 遊戲修復
+# 注意：Omarchy v3.7.0 已移除 SDL_VIDEODRIVER，由遊戲/Proton 自行偵測
 env = PROTON_USE_WINED3D,0
 EOF
 
     detail "envs.conf 已更新:"
-    grep -A 8 "遊戲相容性" "$ENVS_CONF" | sed 's/^/  /'
+    grep -A 4 "遊戲相容性" "$ENVS_CONF" | sed 's/^/  /'
 
     info "遊戲環境變數設定完成"
 }
@@ -121,7 +114,11 @@ uninstall() {
 
     info "移除 envs.conf 中的遊戲設定..."
     if [[ -f "$ENVS_CONF" ]]; then
-        sed -i '/^# 遊戲相容性設定/,/^env = PROTON_USE_WINED3D,0$/d' "$ENVS_CONF"
+        sed -i '/^# 遊戲相容性設定/,/^env = PROTON_USE_WINED3D/d' "$ENVS_CONF"
+        # 清理舊版殘留的 X11 相關設定
+        sed -i '/SDL_VIDEODRIVER/d' "$ENVS_CONF"
+        sed -i '/UNITY_FORCE_DISPLAY/d' "$ENVS_CONF"
+        sed -i '/UNITY_DISABLE_XRANDR/d' "$ENVS_CONF"
         # 如果檔案變空就刪除
         if [[ ! -s "$ENVS_CONF" ]]; then
             rm -f "$ENVS_CONF"
@@ -155,7 +152,7 @@ show_status() {
         echo -e "  ${RED}✗${NC} games.conf 視窗規則未設定"
     fi
 
-    if config_contains "$ENVS_CONF" "SDL_VIDEODRIVER"; then
+    if config_contains "$ENVS_CONF" "PROTON_USE_WINED3D"; then
         echo -e "  ${GREEN}✓${NC} 遊戲環境變數已設定"
     else
         echo -e "  ${RED}✗${NC} 遊戲環境變數未設定"
@@ -204,8 +201,8 @@ install() {
     info "  在 Steam 中對遊戲按右鍵 → 內容 → 啟動選項:"
     info "  gamescope -W 1920 -H 1080 -f -- %command%"
     echo ""
-    info "  此設定會將遊戲包在 gamescope 微合成器中，解決 Wayland 相容性問題"
-    info "  適用於: Skul, Hollow Knight, Celeste, 以及大部分 Unity/SDL 遊戲"
+    info "  遊戲相容性設定（gamescope + 視窗規則）"
+    info "  適用於: Skul, Hollow Knight, Celeste 等大部分遊戲"
     echo ""
 
     if [[ -t 0 ]]; then

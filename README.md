@@ -140,12 +140,13 @@
 
 ### setup-gaming.sh — 遊戲相容性
 
-**目標：** 解決 Wayland 環境下 Unity/SDL 遊戲的常見問題
+**目標：** gamescope 微合成器 + 遊戲視窗規則
 
 - **gamescope**：微合成器，把遊戲包在獨立的 Wayland 視窗中
-- **SDL_VIDEODRIVER=x11**：強制 SDL 遊戲使用 XWayland
 - **自訂視窗規則**：針對特定遊戲的 float/center 規則
 - **Steam 啟動選項範本**：`gamescope -W 1920 -H 1080 -f -- %command%`
+
+> 注意：Omarchy v3.7.0 已移除 `SDL_VIDEODRIVER` 環境變數（它反而會搞壞 Proton 遊戲）。本腳本不再設定任何 X11 相關 env vars。
 
 ### fix-chrome-keyring.sh — Chrome Keyring 修復
 
