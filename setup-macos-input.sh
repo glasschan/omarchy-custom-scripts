@@ -45,6 +45,12 @@ setup_macos_input() {
     info "設定 macOS 風格輸入..."
     backup_input
     
+    # Preserve device blocks from other scripts (e.g., setup-keyboard-swap.sh)
+    local device_blocks=""
+    if [[ -f "$INPUT_CONF" ]]; then
+        device_blocks=$(sed -n '/^device {/,/^}/p' "$INPUT_CONF" 2>/dev/null || true)
+    fi
+    
     mkdir -p "$(dirname "$INPUT_CONF")"
     
     cat > "$INPUT_CONF" << 'EOF'
@@ -101,6 +107,13 @@ windowrule = match:class com.mitchellh.ghostty, scroll_touchpad 0.2
 # gesture = 3, left,  dispatcher, movefocus, l
 # gesture = 3, right, dispatcher, movefocus, r
 EOF
+
+    # Restore preserved device blocks
+    if [[ -n "$device_blocks" ]]; then
+        echo "" >> "$INPUT_CONF"
+        echo "$device_blocks" >> "$INPUT_CONF"
+        detail "已保留鍵盤裝置設定"
+    fi
     
     detail "input.conf 內容:"
     cat "$INPUT_CONF" | sed 's/^/  /'
@@ -118,6 +131,12 @@ EOF
 reset_input() {
     info "還原輸入設定..."
     
+    # Preserve device blocks before restoring backup
+    local device_blocks=""
+    if [[ -f "$INPUT_CONF" ]]; then
+        device_blocks=$(sed -n '/^device {/,/^}/p' "$INPUT_CONF" 2>/dev/null || true)
+    fi
+    
     # 尋找最新的備份
     local latest_backup
     latest_backup=$(ls -t "$HOME/.config/hypr/input.conf.bak."* 2>/dev/null | head -1)
@@ -125,6 +144,13 @@ reset_input() {
     if [[ -n "$latest_backup" ]]; then
         cp "$latest_backup" "$INPUT_CONF"
         info "已還原為備份: $latest_backup"
+        
+        # Restore preserved device blocks (only if backup doesn't already have them)
+        if [[ -n "$device_blocks" ]] && ! grep -q '^device {' "$INPUT_CONF"; then
+            echo "" >> "$INPUT_CONF"
+            echo "$device_blocks" >> "$INPUT_CONF"
+            detail "已保留鍵盤裝置設定"
+        fi
     else
         warn "找不到備份檔案，無法還原"
         return 1

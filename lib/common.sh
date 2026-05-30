@@ -6,8 +6,9 @@
 # All scripts source this file for logging, package management, and
 # common utilities.
 
-# Exit on error by default
-set -e
+# Note: set -e removed from shared library. Sourced by multiple scripts where
+# strict error-exit causes surprising failures (e.g., grep returning 1 in guards).
+# Individual scripts can add their own error handling as needed.
 
 # ========================================
 # Color definitions

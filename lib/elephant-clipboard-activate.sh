@@ -11,7 +11,7 @@
 CONTENT="$1"
 
 if [ -z "$CONTENT" ]; then
-    wl-copy && hyprctl dispatch sendshortcut "SHIFT,Insert,activewindow"
+    wl-copy && hyprctl dispatch sendshortcut "SHIFT, Insert, activewindow"
 else
-    echo -n "$CONTENT" | wl-copy && hyprctl dispatch sendshortcut "SHIFT,Insert,activewindow"
+    echo -n "$CONTENT" | wl-copy && hyprctl dispatch sendshortcut "SHIFT, Insert, activewindow"
 fi

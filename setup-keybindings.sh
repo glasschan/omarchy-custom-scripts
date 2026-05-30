@@ -197,7 +197,7 @@ show_status() {
         else
             echo -e "  ${YELLOW}!${NC} Elephant 已安裝但自動貼上未設定"
         fi
-        if grep -q 'pinned_on_top\s*=\s*true' "$CLIPBOARD_CONFIG"; then
+        if grep -Eq 'pinned_on_top\s*=\s*true' "$CLIPBOARD_CONFIG"; then
             echo -e "  ${GREEN}✓${NC} Pin 功能已開啟"
         fi
     else

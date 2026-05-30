@@ -22,7 +22,8 @@
 | **快捷鍵** | `setup-keybindings.sh` | 截圖、錄影、剪貼簿自動貼上 |
 | **遊戲相容** | `setup-gaming.sh` | gamescope + 遊戲環境變數 + 視窗規則 |
 | **容器工具** | `setup-distrobox.sh` | Distrobox + DistroShelf + `de` alias |
-| **修復工具** | `fix-chrome-keyring.sh` | 修復 Chrome keyring 密碼彈窗 |
+| **修復工具** | `fix-chrome-keyring.sh` | Chrome keyring 密碼彈窗修復 |
+| **修復工具** | `fix-spotify-scale.sh` | Spotify 1080p 縮放修復 |
 | **相容包裝** | `setup-rime-scj.sh` | [舊版] 字體 + 輸入法組合（已拆分） |
 
 ## 快速開始
@@ -175,6 +176,7 @@
 ├── setup-gaming.sh          # 遊戲相容性設定
 ├── setup-distrobox.sh       # Distrobox 容器工具
 ├── fix-chrome-keyring.sh    # Chrome keyring 密碼彈窗修復
+├── fix-spotify-scale.sh     # Spotify 1080p 縮放修復
 ├── test-idempotency.sh      # 冪等性測試工具
 └── setup-rime-scj.sh        # [舊版] 相容包裝
 ```

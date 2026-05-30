@@ -89,7 +89,6 @@ setup_rime_scj() {
 
     info "下載並安裝 rime-scj..."
     mkdir -p "$RIME_DIR"
-    cd "$RIME_DIR"
 
     local temp_dir=$(mktemp -d)
     git clone --depth 1 https://github.com/rime/rime-scj.git "$temp_dir"

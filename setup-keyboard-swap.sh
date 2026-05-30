@@ -140,7 +140,9 @@ uninstall() {
         return 0
     fi
 
-    sed -i '/device {/,/^}/{/altwin:swap_alt_win/d}' "$INPUT_CONF"
+    # Remove entire device block (install removes all device blocks before adding,
+    # so the only device block present is the one we added)
+    sed -i '/device {/,/^}/d' "$INPUT_CONF"
     sed -i '/^$/d' "$INPUT_CONF"
 
     if command -v hyprctl &>/dev/null; then

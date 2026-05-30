@@ -46,10 +46,10 @@ get_script_description() {
 discover_scripts() {
     local scripts=()
     for script in "$SCRIPT_DIR"/setup-*.sh; do
-        local basename=$(basename "$script")
-        [[ "$basename" == "setup-all.sh" ]] && continue
-        [[ "$basename" == "setup-rime-scj.sh" ]] && continue
-        scripts+=("$basename")
+        local script_base=$(basename "$script")
+        [[ "$script_base" == "setup-all.sh" ]] && continue
+        [[ "$script_base" == "setup-rime-scj.sh" ]] && continue
+        scripts+=("$script_base")
     done
     # Add standalone scripts
     for script in "$SCRIPT_DIR"/fix-chrome-keyring.sh "$SCRIPT_DIR"/fix-spotify-scale.sh; do
@@ -244,7 +244,7 @@ show_status() {
     local scripts=($(discover_scripts))
     for script in "${scripts[@]}"; do
         # Check if script supports -s
-        if grep -q "\-\-status" "$SCRIPT_DIR/$script" || grep -q "-s\|--status" "$SCRIPT_DIR/$script" | head -1 | grep -q status; then
+        if grep -q "\-s\|--status" "$SCRIPT_DIR/$script" 2>/dev/null; then
             "$SCRIPT_DIR/$script" -s
             echo ""
         fi

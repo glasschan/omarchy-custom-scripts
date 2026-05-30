@@ -36,7 +36,7 @@ install_fix() {
     KEYRING_FILE="$KEYRING_DIR/Default_keyring.keyring"
     DEFAULT_FILE="$KEYRING_DIR/default"
     
-    cat << EOF > "$DEFAULT_FILE"
+    cat << 'EOF' > "$DEFAULT_FILE"
 Default_keyring
 EOF
 

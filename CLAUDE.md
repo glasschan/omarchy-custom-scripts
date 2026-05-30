@@ -15,8 +15,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Entry Point
 - **`setup-all.sh`** - Main interactive menu that orchestrates all other scripts. Provides:
-  - Interactive menu mode (`-m`)
-  - One-click install all (default)
+  - Interactive menu mode (default)
+  - One-click install all (`-i`)
   - Status check (`-s`)
   - Uninstall all (`-u`)
 

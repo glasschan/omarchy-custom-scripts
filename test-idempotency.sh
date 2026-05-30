@@ -137,13 +137,22 @@ main() {
             setup-keyboard-swap.sh)
                 test_script "setup-keyboard-swap.sh" "$HOME/.config/hypr/input.conf"
                 ;;
+            setup-looknfeel.sh)
+                test_script "setup-looknfeel.sh" "$HOME/.config/hypr/looknfeel.conf"
+                ;;
+            fix-spotify-scale.sh)
+                test_script "fix-spotify-scale.sh" "$HOME/.config/spotify-flags.conf"
+                ;;
+            fix-chrome-keyring.sh)
+                test_script "fix-chrome-keyring.sh" "$HOME/.local/share/keyrings/Default_keyring.keyring"
+                ;;
             *)
                 error "未知腳本: $1"
                 ;;
         esac
     else
         # 測試所有腳本
-        for script in setup-fonts.sh setup-input.sh setup-macos-input.sh setup-keyboard-swap.sh setup-keybindings.sh setup-distrobox.sh setup-gaming.sh; do
+        for script in setup-fonts.sh setup-input.sh setup-macos-input.sh setup-keyboard-swap.sh setup-keybindings.sh setup-distrobox.sh setup-gaming.sh setup-looknfeel.sh fix-spotify-scale.sh fix-chrome-keyring.sh; do
             case "$script" in
                 setup-keybindings.sh) test_script "$script" "$HOME/.config/elephant/clipboard.toml" ;;
                 setup-fonts.sh) test_script "$script" "$HOME/.config/chromium-flags.conf" ;;
@@ -152,6 +161,9 @@ main() {
                 setup-macos-input.sh) test_script "$script" "$HOME/.config/hypr/input.conf" ;;
                 setup-keyboard-swap.sh) test_script "$script" "$HOME/.config/hypr/input.conf" ;;
                 setup-input.sh) test_script "$script" "$HOME/.local/share/fcitx5/rime/scj6.custom.yaml" ;;
+                setup-looknfeel.sh) test_script "$script" "$HOME/.config/hypr/looknfeel.conf" ;;
+                fix-spotify-scale.sh) test_script "$script" "$HOME/.config/spotify-flags.conf" ;;
+                fix-chrome-keyring.sh) test_script "$script" "$HOME/.local/share/keyrings/Default_keyring.keyring" ;;
             esac
         done
     fi
