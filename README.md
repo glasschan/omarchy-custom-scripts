@@ -58,20 +58,15 @@
 
 ### setup-looknfeel.sh — Hyprland 視覺與動畫
 
-**目標：** 自訂 Hyprland 的 Look & Feel，讓視覺更現代化且動畫更流暢
+**目標：** macOS 風格 Look & Feel（覆蓋 Omarchy 預設：橙色漸層邊框、0 圓角、極慢動畫）
 
-- **漸層邊框**：橘紅色漸層 (f38d70 → fd6883)
-  - 為什麼：比預設的青藍色更有溫度
-- **視窗圓角**：10px 圓角
-  - 為什麼：更現代的視覺風格
-- **陰影 & 毛玻璃**：強化版 blur + shadow
-  - 為什麼：增加視覺層次感
-- **未聚焦視窗暗化**：dim_inactive + dim_strength = 0.25
-  - 為什麼：更容易分辨哪個視窗是焦點
-- **流暢動畫曲線**：自訂 Bezier 曲線 + 精心調整的速度
-  - 為什麼：比預設更細緻順暢的動畫體驗
-- **邊框拖曳調整大小**：resize_on_border = true
-  - 為什麼：更直覺的視窗大小調整
+- **近乎透明嘅白色邊框**：1px hairline（macOS 冇彩色邊框，焦點靠陰影區分）
+- **視窗圓角**：10px
+- **陰影 & 毛玻璃**：柔和陰影 + 明亮 vibrancy blur（macOS 風格）
+- **快速彈簧動畫**：macSpring ~300ms（Omarchy 預設 3-4 秒太慢）
+- **無視窗暗化**：`dim_inactive` 關閉（個人偏好 — 滑鼠 focus 轉移時視窗唔變暗）
+- **邊框拖曳調整大小**：`resize_on_border = true`
+- **`-f/--force`**：強制重新套用（還原被手動修改嘅設定）
 
 ### setup-input.sh — 輸入法
 
