@@ -125,7 +125,7 @@
 
 ### setup-keybindings.sh — 快捷鍵設定
 
-**目標：** 截圖、螢幕錄影、剪貼簿的自訂快捷鍵
+**目標：** 截圖、螢幕錄影、OCR、剪貼簿的自訂快捷鍵
 
 | 快捷鍵 | 功能 |
 | -------- | ------ |
@@ -133,11 +133,22 @@
 | `Alt+Shift+E` | 視窗截圖 |
 | `Alt+Shift+F` | 全螢幕截圖 |
 | `Alt+Shift+R` | 螢幕錄影 |
+| `Alt+Shift+Ctrl+R` | 螢幕錄影（含攝影機） |
 | `Alt+Shift+A` | 顏色選擇器 |
+| `Alt+Shift+O` | OCR 文字辨識（中英混合） |
 | `Ctrl+\`` | 開啟剪貼簿管理員 |
 
-- **自動貼上**：選取剪貼項目後自動複製並貼上（透過 `hyprctl dispatch sendshortcut`）
+- **自動貼上**：選取剪貼項目後自動複製並貼上（透過 `hyprctl dispatch sendshortcut "SHIFT, Insert, activewindow"` — Hyprland 0.55+ 必須有第三個參數）
 - **Pin 功能**：重要項目可固定在列表頂部
+- **自我修復**：自動修復舊版命令名（`omarchy-cmd-*`、OCR `-zh` 變體、舊 sendshortcut 語法）
+
+### setup-foot.sh — foot 終端機快捷鍵
+
+**目標：** 設定 foot 終端機的貼上/複製快捷鍵（foot 預設的 `Ctrl+Shift+V` 會被自訂 `clipboard-paste` 取代，需要一併保留）
+
+- **貼上**：`Shift+Insert` + `Ctrl+Shift+V`
+- **複製**：`Control+Insert`
+- 修改 `~/.config/foot/foot.ini` 的 `[key-bindings]` section，開新視窗生效
 
 ### setup-gaming.sh — 遊戲相容性
 
@@ -168,19 +179,23 @@
 ```
 .
 ├── lib/
-│   └── common.sh            # 共用函式庫（顏色、紀錄函數、套件管理等）
-├── setup-all.sh             # 主程式，自動探索所有腳本 + 互動選單
-├── setup-fonts.sh           # 字體設定
-├── setup-input.sh           # 輸入法設定
-├── setup-macos-input.sh    # 鍵盤/觸控板設定
-├── setup-keyboard-swap.sh   # 交換內建鍵盤 Super/Alt
-├── setup-keybindings.sh     # 截圖/錄影/剪貼簿快捷鍵
-├── setup-gaming.sh          # 遊戲相容性設定
-├── setup-distrobox.sh       # Distrobox 容器工具
-├── fix-chrome-keyring.sh    # Chrome keyring 密碼彈窗修復
-├── fix-spotify-scale.sh     # Spotify 1080p 縮放修復
-├── test-idempotency.sh      # 冪等性測試工具
-└── setup-rime-scj.sh        # [舊版] 相容包裝
+│   ├── common.sh                    # 共用函式庫（顏色、紀錄函數、套件管理等）
+│   ├── elephant-clipboard-activate.sh # walker 剪貼簿 → elephant 橋接
+│   └── AGENTS.md                    # DOX 子文件：lib 契約
+├── AGENTS.md                        # DOX 根文件：專案契約與索引
+├── setup-all.sh                     # 主程式，自動探索所有腳本 + 互動選單
+├── setup-fonts.sh                   # 字體設定
+├── setup-input.sh                   # 輸入法設定
+├── setup-macos-input.sh             # 鍵盤/觸控板設定
+├── setup-keyboard-swap.sh           # 交換內建鍵盤 Super/Alt
+├── setup-keybindings.sh             # 截圖/錄影/OCR/剪貼簿快捷鍵
+├── setup-foot.sh                    # foot 終端機貼上/複製快捷鍵
+├── setup-gaming.sh                  # 遊戲相容性設定
+├── setup-distrobox.sh               # Distrobox 容器工具
+├── fix-chrome-keyring.sh            # Chrome keyring 密碼彈窗修復
+├── fix-spotify-scale.sh             # Spotify 1080p 縮放修復
+├── test-idempotency.sh              # 冪等性測試工具
+└── setup-rime-scj.sh                # [舊版] 相容包裝
 ```
 
 ## 開發者說明
