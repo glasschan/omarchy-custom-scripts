@@ -13,7 +13,7 @@
 ## 功能總覽
 
 | 分類 | 腳本 | 功能 |
-|------|------|------|
+| ------ | ------ | ------ |
 | **系統設定** | `setup-fonts.sh` | 字體 + Chromium scale 修復 |
 | **系統設定** | `setup-looknfeel.sh` | Hyprland Look & Feel (圓角、陰影、動畫、漸層邊框 |
 | **輸入法** | `setup-input.sh` | fcitx5-rime + 快速倉頡 |
@@ -93,7 +93,7 @@
 **目標：** 把 macOS 的鍵盤/觸控板操作手感移植到 Hyprland
 
 | 設定 | 值 | 為什麼 |
-|------|-----|--------|
+| ------ | ----- | -------- |
 | repeat_rate | 60 | Arch 預設 25 太慢，macOS 約 60 |
 | repeat_delay | 200ms | 比預設 660ms 短，更快開始重複 |
 | natural_scroll | true | macOS muscle memory |
@@ -127,7 +127,7 @@
 **目標：** 截圖、螢幕錄影、剪貼簿的自訂快捷鍵
 
 | 快捷鍵 | 功能 |
-|--------|------|
+| -------- | ------ |
 | `Alt+Shift+Q` | 區域截圖 |
 | `Alt+Shift+E` | 視窗截圖 |
 | `Alt+Shift+F` | 全螢幕截圖 |
@@ -189,7 +189,7 @@
 所有腳本都支援一致的命令列參數：
 
 | 參數 | 功能 |
-|------|------|
+| ------ | ------ |
 | `-i`, `--install` | 安裝/套用設定 |
 | `-u`, `--uninstall` | 還原設定 |
 | `-s`, `--status` | 顯示目前狀態 |
@@ -299,7 +299,7 @@ grep -Eq '^command\s*=' file
 任何會修改設定檔的腳本，**跑兩次應該得到完全相同的結果**：
 
 | ✅ 正確做法 | ❌ 錯誤做法 |
-|-------------|-------------|
+| ------------- | ------------- |
 | 先檢查是否已存在 → 才修改 | 永遠直接 append (`>>`) 不檢查 |
 | `cat > file` (覆蓋寫入) | `cat >> file` (累加寫入) |
 | `sed -i 's/old/new/'` 有 guard check | 裸 `sed -i` 不檢查 |
@@ -312,7 +312,8 @@ grep -Eq '^command\s*=' file
 ```bash
 # 1. 檢查設定檔是否正常
 grep '^command' ~/.config/elephant/clipboard.toml
-# 應顯示: command = 'wl-copy && hyprctl dispatch sendshortcut "SHIFT, Insert,"'
+# 應顯示: command = 'wl-copy && hyprctl dispatch sendshortcut "SHIFT, Insert, activewindow"'
+# （Hyprland 0.55+ 必須有第三個參數 activewindow，否則 "invalid args"）
 
 # 2. 確認服務執行中
 pgrep -a elephant && pgrep -a walker

@@ -104,6 +104,12 @@ setup_hypr_keybindings() {
 		sed -i 's/omarchy-capture-text-extraction-zh/env OMARCHY_OCR_LANGS=eng+chi_tra omarchy-capture-text-extraction/g' "$HYPR_BINDINGS"
 	fi
 
+	# Step 1.6: Remove duplicate clipboard binding from old script format (CTRL, grave)
+	if grep -q "bindd = CTRL, grave" "$HYPR_BINDINGS"; then
+		info "發現重複的剪貼簿快捷鍵（舊格式），正在修復..."
+		sed -i '/bindd = CTRL, grave/d' "$HYPR_BINDINGS"
+	fi
+
 	# Step 2: Add missing OCR binding if not present
 	if ! grep -q "omarchy-capture-text-extraction" "$HYPR_BINDINGS"; then
 		info "新增 OCR 快捷鍵..."

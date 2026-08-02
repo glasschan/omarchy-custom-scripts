@@ -4,7 +4,8 @@
 # This enables auto-paste when selecting items from walker's clipboard provider
 
 # Elephant's clipboard command is configured in ~/.config/elephant/clipboard.toml
-# It runs: wl-copy && hyprctl dispatch sendshortcut "SHIFT, Insert,"
+# It runs: wl-copy && hyprctl dispatch sendshortcut "SHIFT, Insert, activewindow"
+# (Hyprland 0.55+ requires the 3rd field; "SHIFT, Insert," -> "sendshortcut: invalid args")
 # But walker's clipboard "copy" action never triggers elephant's activation.
 # This script calls elephant activate via IPC to run the configured command.
 
