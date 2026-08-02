@@ -36,11 +36,16 @@ is_installed() {
 install() {
     info "開始設定 Hyprland Look & Feel..."
 
-    check_config_exists
+    # -f/--force: 跳過存在性與重複檢查，強制重新套用（用於手動改壞咗之後還原）
+    local force=false
+    [[ "$1" == "-f" || "$1" == "--force" ]] && force=true
 
-    if is_installed; then
-        warn "Look & Feel 設定似乎已經套用，跳過重複設定"
-        return
+    if ! $force; then
+        check_config_exists
+        if is_installed; then
+            warn "Look & Feel 設定似乎已經套用，跳過重複設定（用 -f 強制重新套用）"
+            return
+        fi
     fi
 
     # 備份原始設定
@@ -71,7 +76,7 @@ general {
     # gaps_out = 10
 
     # Border: 1px hairline (down from 2). macOS has 0, but 1px helps in tiling.
-    border_size = 5
+    border_size = 1
 
     # Border colors: nearly invisible, overriding the orange theme.
     col.active_border = $macBorder
@@ -257,6 +262,7 @@ usage() {
     echo ""
     echo "Options:"
     echo "  -i, --install     安裝/套用設定 (預設)"
+    echo "  -f, --force       強制重新套用（跳過重複檢查，還原被手動修改嘅設定）"
     echo "  -u, --uninstall   還原設定 (回復 Omarchy 預設)"
     echo "  -s, --status      顯示目前狀態"
     echo "  -h, --help        顯示此說明"
@@ -274,6 +280,9 @@ main() {
             ;;
         -h|--help)
             usage
+            ;;
+        -f|--force)
+            install --force
             ;;
         -i|--install|"")
             install
