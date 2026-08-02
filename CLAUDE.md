@@ -7,6 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **Glass Omarchy Custom Scripts** - A collection of bash scripts for personalizing an Omarchy Linux (Arch-based) Hyprland environment with macOS-like behavior. The theme is "bringing macOS UX to Arch Linux".
 
 **Design Philosophy:**
+
 - Personal use only - not generic installation scripts
 - Fully automated - no GUI tools or interactive wizards
 - Idempotent - safe to re-run; can restore/reinstall without polluting system
@@ -14,6 +15,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Code Architecture
 
 ### Entry Point
+
 - **`setup-all.sh`** - Main interactive menu that orchestrates all other scripts. Provides:
   - Interactive menu mode (default)
   - One-click install all (`-i`)
@@ -23,6 +25,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Script Modules
 
 All scripts follow this pattern:
+
 ```bash
 ./script.sh -i  # install/apply
 ./script.sh -u  # uninstall/restore
@@ -30,7 +33,7 @@ All scripts follow this pattern:
 ```
 
 | Script | Purpose | Key Files Modified |
-|--------|---------|-------------------|
+| -------- | --------- | ------------------- |
 | `setup-fonts.sh` | Fonts + Chromium scale fix | `~/.config/fontconfig/fonts.conf`, `~/.config/chromium-flags.conf`, gsettings |
 | `setup-input.sh` | fcitx5-rime + Quick Cangjie input method | `~/.local/share/fcitx5/rime/*`, `~/.config/fcitx5/config` |
 | `setup-macos-input.sh` | macOS-like keyboard/trackpad behavior | `~/.config/hypr/input.conf` |
@@ -43,10 +46,10 @@ All scripts follow this pattern:
 ### Common Patterns Across All Scripts
 
  1. **Helper functions at top**: `info()`, `warn()`, `error()`, `detail()`, `header()` - all use ANSI colors
-2. **Idempotent checks**: Always check if already installed/configured before making changes
-3. **Package detection**: Uses `pacman -Q pkgname` to check for existing packages
-4. **AUR helper fallback**: `paru` → `yay` → `sudo pacman`
-5. **No interactive prompts during install** (except confirmations for optional features)
+ 2. **Idempotent checks**: Always check if already installed/configured before making changes
+ 3. **Package detection**: Uses `pacman -Q pkgname` to check for existing packages
+ 4. **AUR helper fallback**: `paru` → `yay` → `sudo pacman`
+ 5. **No interactive prompts during install** (except confirmations for optional features)
 
 ### ⚠️ Critical Shell Scripting Pitfalls (Hard Learned)
 
@@ -74,8 +77,12 @@ This was the root cause of the clipboard manager corruption bug. Each run double
 # ❌ UNRELIABLE - fails during focus transitions
 command = 'wl-copy && sleep 0.2 && wtype -M shift -k Insert -m shift'
 
-# ✅ CORRECT - compositor-level, no focus dependency
+# ❌ INVALID on Hyprland 0.55+ - sendshortcut now REQUIRES the 3rd field (window target)
+#   -> hyprctl prints "sendshortcut: invalid args", paste silently fails
 command = 'wl-copy && hyprctl dispatch sendshortcut "SHIFT, Insert,"'
+
+# ✅ CORRECT - compositor-level, no focus dependency (0.55+ syntax)
+command = 'wl-copy && hyprctl dispatch sendshortcut "SHIFT, Insert, activewindow"'
 ```
 
 #### **grep Whitespace Regex - Use `-E` for `\s`**
@@ -93,6 +100,7 @@ grep -Eq '^command\s*=' file
 #### **Idempotency is Mandatory - Test It**
 
 **Always run your script twice in a row** and verify the config file is identical both times:
+
 ```bash
 ./script.sh -i && md5sum ~/.config/target.conf  # Run 1
 ./script.sh -i && md5sum ~/.config/target.conf  # Run 2 - MUST match!
@@ -103,6 +111,7 @@ If the checksums differ, you have a stacking bug.
 ## Common Development Commands
 
 ### Run Scripts
+
 ```bash
 # Interactive menu (most used)
 ./setup-all.sh -m
@@ -119,7 +128,9 @@ If the checksums differ, you have a stacking bug.
 ```
 
 ### Testing
+
 There is no formal test suite. Test by:
+
 1. Running the script with `-i` on a fresh Omarchy system
 2. Running with `-u` to verify clean removal
 3. Running the same command twice to verify idempotency
@@ -136,20 +147,24 @@ There is no formal test suite. Test by:
 ## Key Implementation Details
 
 ### Hyprland Config Files
+
 - User configs go in `~/.config/hypr/`
 - `hyprland.conf` sources other files (input.conf, bindings.conf, envs.conf, games.conf)
 - Never edit `~/.local/share/omarchy/` (Omarchy defaults)
 
 ### Input Method (fcitx5-rime)
+
 - Direct file manipulation (no `fcitx5-configtool`) because GUI tools block scripts
 - Rime schema files go in `~/.local/share/fcitx5/rime/`
 - Auto-deploy: kill fcitx5, restart, wait up to 10s for build
 
 ### Per-device Keyboard Settings
+
 - Hyprland supports per-device XKB options via `input[<device>]:xkb_options = altwin:swap_alt_win`
 - Used by `setup-keyboard-swap.sh` to swap Super/Alt ONLY on built-in keyboard
 
 ### Game Compatibility
+
 - `gamescope` is the standard fix for Unity/SDL games not showing windows on Wayland
 - Omarchy v3.7.0 removed `SDL_VIDEODRIVER` (it broke Proton games); games now auto-detect
 - Steam launch option: `gamescope -W 1920 -H 1080 -f -- %command%`
@@ -157,6 +172,7 @@ There is no formal test suite. Test by:
 ## Adding New Features
 
 When creating a new `setup-xxx.sh`:
+
 1. Copy the structure from existing scripts (helpers, check_package, install/uninstall functions)
 2. Make it idempotent (check if already configured)
 3. Add proper cleanup in `-u` mode
