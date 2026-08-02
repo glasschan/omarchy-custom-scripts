@@ -40,6 +40,7 @@ All scripts follow this pattern:
 | `setup-keyboard-swap.sh` | Swap Super/Alt on built-in keyboard (optional) | `~/.config/hypr/input.conf` |
 | `setup-distrobox.sh` | Distrobox + DistroShelf container tools | `~/.bashrc`, `~/.config/distrobox/distrobox.ini` |
 | `setup-keybindings.sh` | Custom screenshot/recording/clipboard bindings | `~/.config/hypr/bindings.conf`, `~/.config/elephant/clipboard.toml` |
+| `setup-foot.sh` | foot terminal paste/copy keybindings | `~/.config/foot/foot.ini` |
 | `fix-chrome-keyring.sh` | Fix Chrome keyring password popup | `~/.local/share/keyrings/*` |
 | `setup-gaming.sh` | Game compatibility for Wayland/Hyprland | `~/.config/hypr/envs.conf`, `~/.config/hypr/games.conf`, installs `gamescope` |
 
@@ -177,11 +178,7 @@ When creating a new `setup-xxx.sh`:
 2. Make it idempotent (check if already configured)
 3. Add proper cleanup in `-u` mode
 4. **Pass the QA checklist below**
-5. Register it in `setup-all.sh`:
-   - Add to menu (both install and uninstall sections)
-   - Add case statement entries
-   - Add to `install_all()` and `uninstall_all()`
-   - Add status check in `show_status()`
+5. No registration needed — `setup-all.sh` auto-discovers scripts via `# Category:` / `# Description:` metadata headers (menu, install_all, uninstall_all, show_status all use discovery). Just make sure the headers exist.
 
 #### **Mandatory QA Checklist for New Scripts**
 

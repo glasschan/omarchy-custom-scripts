@@ -20,6 +20,7 @@
 | **鍵盤** | `setup-macos-input.sh` | 鍵盤/觸控板 macOS 行為 |
 | **鍵盤** | `setup-keyboard-swap.sh` | 交換內建鍵盤 Super/Alt (Optional) |
 | **快捷鍵** | `setup-keybindings.sh` | 截圖、錄影、剪貼簿自動貼上 |
+| **快捷鍵** | `setup-foot.sh` | foot 終端機貼上/複製快捷鍵 |
 | **遊戲相容** | `setup-gaming.sh` | gamescope + 遊戲環境變數 + 視窗規則 |
 | **容器工具** | `setup-distrobox.sh` | Distrobox + DistroShelf + `de` alias |
 | **修復工具** | `fix-chrome-keyring.sh` | Chrome keyring 密碼彈窗修復 |

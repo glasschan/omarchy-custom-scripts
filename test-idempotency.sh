@@ -128,6 +128,9 @@ main() {
             setup-gaming.sh)
                 test_script "setup-gaming.sh" "$HOME/.config/hypr/envs.conf"
                 ;;
+            setup-foot.sh)
+                test_script "setup-foot.sh" "$HOME/.config/foot/foot.ini"
+                ;;
             setup-macos-input.sh)
                 test_script "setup-macos-input.sh" "$HOME/.config/hypr/input.conf"
                 ;;
