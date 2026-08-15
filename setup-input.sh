@@ -2,6 +2,8 @@
 
 # setup-input.sh
 # 設定 fcitx5-rime + 快速倉頡輸入法
+# Omarchy v4：fcitx5 由 systemd user service (omarchy-fcitx5.service) 監管，
+# 環境變數 (QT_IM_MODULE 等) 已是 Omarchy 預設，此腳本只需管理 rime 設定檔
 # Category: 輸入法
 # Description: 安裝 Fcitx5 + 快速倉頡
 
@@ -12,6 +14,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib/common.sh"
 
 RIME_DIR="$HOME/.local/share/fcitx5/rime"
+FCITX5_PROFILE="$HOME/.config/fcitx5/profile"
 
 # 檢查 rime-scj 是否安裝
 check_rime_scj() {
@@ -188,22 +191,82 @@ remove_default_custom() {
     info "default.custom.yaml 已移除"
 }
 
+# 檢查 fcitx5 profile 是否含 rime（v4 升級後 profile 曾損毀導致無法切換中文）
+check_fcitx5_profile() {
+    if [[ -f "$FCITX5_PROFILE" ]]; then
+        grep -q "Name=rime" "$FCITX5_PROFILE" && \
+        grep -q "DefaultIM=rime" "$FCITX5_PROFILE"
+    else
+        return 1
+    fi
+}
+
+# 修復 fcitx5 profile（寫入 canonical 結構；fcitx5 之後可能自行改寫，屬正常）
+setup_fcitx5_profile() {
+    info "檢查 fcitx5 profile..."
+
+    if check_fcitx5_profile; then
+        info "fcitx5 profile 結構正確，跳過"
+        return 0
+    fi
+
+    info "修復 fcitx5 profile（keyboard-us + rime）..."
+    mkdir -p "$(dirname "$FCITX5_PROFILE")"
+    create_backup "$FCITX5_PROFILE"
+
+    cat > "$FCITX5_PROFILE" << 'EOF'
+[Groups/0]
+# Group Name
+Name=Default
+# Layout
+Default Layout=us
+# Default Input Method
+DefaultIM=rime
+
+[Groups/0/Items/0]
+# Name
+Name=keyboard-us
+# Layout
+Layout=
+
+[Groups/0/Items/1]
+# Name
+Name=rime
+# Layout
+Layout=
+
+[GroupOrder]
+0=Default
+EOF
+
+    info "fcitx5 profile 已修復"
+}
+
+# 重新啟動 fcitx5（v4 用 systemd service；舊版 fallback 到手動啟動）
+restart_fcitx5() {
+    if systemctl --user cat omarchy-fcitx5.service &>/dev/null; then
+        info "重新啟動 omarchy-fcitx5.service..."
+        systemctl --user restart omarchy-fcitx5.service
+    else
+        if pgrep -x "fcitx5" > /dev/null; then
+            info "停止 fcitx5..."
+            killall fcitx5 2>/dev/null || true
+            sleep 1
+        fi
+        fcitx5 -d &
+        sleep 1
+    fi
+}
+
 # 重新部署 Rime
 redeploy_rime() {
     info "重新部署 Rime..."
 
     rm -rf "$RIME_DIR/build"
 
-    if pgrep -x "fcitx5" > /dev/null; then
-        info "停止 fcitx5..."
-        killall fcitx5 2>/dev/null || true
-        sleep 1
-    fi
+    restart_fcitx5
 
-    info "啟動 fcitx5 並等待部署完成..."
-    fcitx5 -d &
-    sleep 1
-
+    info "等待部署完成..."
     local count=0
     while [[ $count -lt 10 ]]; do
         if [[ -d "$RIME_DIR/build" ]] && [[ -f "$RIME_DIR/build/scj6.schema.yaml" ]]; then
@@ -253,8 +316,25 @@ show_status() {
 
     if pgrep -x "fcitx5" > /dev/null; then
         echo -e "  ${GREEN}✓${NC} fcitx5 正在執行"
+        if command -v fcitx5-remote &>/dev/null; then
+            echo -e "  ${CYAN}ℹ${NC}  目前輸入法: $(fcitx5-remote -n 2>/dev/null)"
+        fi
     else
         echo -e "  ${YELLOW}!${NC} fcitx5 未執行"
+    fi
+
+    if systemctl --user cat omarchy-fcitx5.service &>/dev/null; then
+        if systemctl --user is-active omarchy-fcitx5.service &>/dev/null; then
+            echo -e "  ${GREEN}✓${NC} omarchy-fcitx5.service 執行中 (Omarchy v4)"
+        else
+            echo -e "  ${RED}✗${NC} omarchy-fcitx5.service 未執行 (Omarchy v4)"
+        fi
+    fi
+
+    if check_fcitx5_profile; then
+        echo -e "  ${GREEN}✓${NC} fcitx5 profile 已設定 rime"
+    else
+        echo -e "  ${RED}✗${NC} fcitx5 profile 缺少 rime"
     fi
 }
 
@@ -294,17 +374,15 @@ install() {
         need_fcitx5_restart=true
     fi
 
+    if ! check_fcitx5_profile; then
+        setup_fcitx5_profile
+        need_fcitx5_restart=true
+    fi
+
     if $need_redeploy; then
         redeploy_rime
     elif $need_fcitx5_restart; then
-        info "重新啟動 fcitx5 以套用設定..."
-        if pgrep -x "fcitx5" > /dev/null; then
-            killall fcitx5 2>/dev/null || true
-            sleep 1
-        fi
-        fcitx5 -d &
-        sleep 1
-        info "fcitx5 已重新啟動"
+        restart_fcitx5
     else
         info "所有設定已完成，無需重新部署"
     fi

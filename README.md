@@ -4,28 +4,34 @@
 
 這組腳本用於自動化設定我的個人 Linux 環境。基於 [Omarchy](https://omarchy.org/) + Hyprland，主題是「把 macOS 的操作手感移植到 Arch Linux」。
 
+**分支對應 Omarchy 版本：**
+
+- `master` — **Omarchy v4**（Hyprland Lua 設定：`~/.config/hypr/*.lua`，fcitx5 由 systemd 監管）
+- `v3` — Omarchy v3（舊版 `.conf` 設定檔；v4 機器請勿使用）
+
 ## 設計理念
 
 - **個人用途**：不是通用的安裝腳本，是為了自己每次重灌後能快速恢復工作環境
 - **自動化**：所有設定都透過 script 完成，不依賴 GUI 工具或互動精靈
 - **可重複**：可以隨時還原/重新安裝，不會汙染系統
+- **不重寫 Omarchy 範本**：v4 的 `input.lua` / `looknfeel.lua` / `bindings.lua` 以 marker 區塊附加，保留範本註解與 Omarchy 預設
 
 ## 功能總覽
 
 | 分類 | 腳本 | 功能 |
 | ------ | ------ | ------ |
 | **系統設定** | `setup-fonts.sh` | 字體 + Chromium scale 修復 |
-| **系統設定** | `setup-looknfeel.sh` | Hyprland Look & Feel (圓角、陰影、動畫、漸層邊框 |
+| **系統設定** | `setup-looknfeel.sh` | Hyprland Look & Feel（圓角、陰影、動畫、白色邊框） |
 | **輸入法** | `setup-input.sh` | fcitx5-rime + 快速倉頡 |
 | **鍵盤** | `setup-macos-input.sh` | 鍵盤/觸控板 macOS 行為 |
-| **鍵盤** | `setup-keyboard-swap.sh` | 交換內建鍵盤 Super/Alt (Optional) |
-| **快捷鍵** | `setup-keybindings.sh` | 截圖、錄影、剪貼簿自動貼上 |
+| **快捷鍵** | `setup-keybindings.sh` | 截圖、錄影、OCR、剪貼簿快捷鍵 |
 | **快捷鍵** | `setup-foot.sh` | foot 終端機貼上/複製快捷鍵 |
-| **遊戲相容** | `setup-gaming.sh` | gamescope + 遊戲環境變數 + 視窗規則 |
 | **容器工具** | `setup-distrobox.sh` | Distrobox + DistroShelf + `de` alias |
 | **修復工具** | `fix-chrome-keyring.sh` | Chrome keyring 密碼彈窗修復 |
 | **修復工具** | `fix-spotify-scale.sh` | Spotify 1080p 縮放修復 |
 | **相容包裝** | `setup-rime-scj.sh` | [舊版] 字體 + 輸入法組合（已拆分） |
+
+> v3 專屬腳本 `setup-keyboard-swap.sh` 與 `setup-gaming.sh` 已在 v4 移除（Hyprland 改用 Lua 設定後不再適用），保留在 `v3` branch。
 
 ## 快速開始
 
@@ -58,7 +64,7 @@
 
 ### setup-looknfeel.sh — Hyprland 視覺與動畫
 
-**目標：** macOS 風格 Look & Feel（覆蓋 Omarchy 預設：橙色漸層邊框、0 圓角、極慢動畫）
+**目標：** macOS 風格 Look & Feel（覆蓋 Omarchy 預設：彩色邊框、0 圓角、無陰影、極慢動畫）
 
 - **近乎透明嘅白色邊框**：1px hairline（macOS 冇彩色邊框，焦點靠陰影區分）
 - **視窗圓角**：10px
@@ -67,6 +73,8 @@
 - **無視窗暗化**：`dim_inactive` 關閉（個人偏好 — 滑鼠 focus 轉移時視窗唔變暗）
 - **邊框拖曳調整大小**：`resize_on_border = true`
 - **`-f/--force`**：強制重新套用（還原被手動修改嘅設定）
+
+**v4 實作方式**：以 `-- BEGIN/END macOS looknfeel settings` marker 區塊附加到 `~/.config/hypr/looknfeel.lua`（`hl.config` / `hl.curve` / `hl.animation` Lua API），唔會重寫 Omarchy 範本；`-u` 移除區塊即回復預設。
 
 ### setup-input.sh — 輸入法
 
@@ -82,6 +90,13 @@
 - **右 Shift 切換中英文**
 - **自動部署**：執行後會自動重啟 fcitx5 並等待部署完成（最長 10 秒）
 
+**v4 注意事項**：
+
+- fcitx5 由 systemd user service `omarchy-fcitx5.service` 監管，重啟一律透過 `systemctl --user restart`（不再 `killall` 手動啟動）
+- IM 環境變數（`QT_IM_MODULE` 等）已是 Omarchy v4 預設，腳本無需設定
+- 腳本會檢查並修復 fcitx5 `profile`（v4 升級後 profile 曾損毀導致無法切換中文）
+- 切換輸入法主要 trigger：`Ctrl+Space`（注意 `Super+Space` 在 v4 被 Omarchy menu 佔用）
+
 **直接寫入 fcitx5 profile 設定檔**：不透過 GUI 精靈，避免卡住 script
 
 ### setup-macos-input.sh — 輸入體驗
@@ -93,8 +108,10 @@
 | repeat_rate | 60 | Arch 預設 25 太慢，macOS 約 60 |
 | repeat_delay | 200ms | 比預設 660ms 短，更快開始重複 |
 | natural_scroll | true | macOS muscle memory |
-| tap-to-click | true | macOS trackpad 習慣 |
+| tap_to_click | true | macOS trackpad 習慣 |
 | scroll_factor | 0.7 | 滾輪速度更快 |
+
+**v4 實作方式**：以 marker 區塊附加到 `~/.config/hypr/input.lua`（`hl.config({ input = ... })`），只覆蓋 macOS 相關項目；terminal 捲動規則 v4 預設已含（Alacritty/kitty/foot 1.5、ghostty 0.2），無需重複。
 
 ### setup-distrobox.sh — 容器環境
 
@@ -106,17 +123,6 @@
   - 為什麼：圖形化管理容器內安裝的 GUI 程式
 - **`de` alias**
   - 為什麼：`de ubuntu` 比 `distrobox enter ubuntu` 少打很多字
-
-### setup-keyboard-swap.sh — 鍵盤按鍵交換 (Optional)
-
-**目標：** 將 Laptop 內建鍵盤的 Super 和 Alt 交換，適合外接鍵盤用 Mac 配置的使用者
-
-- **交換時機**：需要外接鍵盤使用 Mac 配置（Cmd=Alt, Alt=Super）但又不想要打擾內建鍵盤
-- **實作方式**：透過 Hyprland 的 per-device XKB options，只針對內建鍵盤應用 `altwin:swap_alt_win`
-- **互動式選單**：執行時會顯示所有偵測到的鍵盤，讓使用者選擇要套用的鍵盤（內建鍵盤會被自動標記）
-- **Swap 效果**：
-  - Alt 鍵 → 變成 Super 鍵（可拉視窗選單、Super+數字切換workspace）
-  - Super 鍵 → 變成 Alt 鍵（可當 Ctrl+Alt+T 之類的組合鍵）
 
 ### setup-keybindings.sh — 快捷鍵設定
 
@@ -133,9 +139,10 @@
 | `Alt+Shift+O` | OCR 文字辨識（中英混合） |
 | `Ctrl+\`` | 開啟剪貼簿管理員 |
 
-- **自動貼上**：選取剪貼項目後自動複製並貼上（透過 `hyprctl dispatch sendshortcut "SHIFT, Insert, activewindow"` — Hyprland 0.55+ 必須有第三個參數）
-- **Pin 功能**：重要項目可固定在列表頂部
-- **自我修復**：自動修復舊版命令名（`omarchy-cmd-*`、OCR `-zh` 變體、舊 sendshortcut 語法）
+**v4 實作方式**：以 marker 區塊附加到 `~/.config/hypr/bindings.lua`（`o.bind()` Lua API）。
+
+- **剪貼簿管理員**：Ctrl+\` 開啟 Omarchy v4 內建剪貼簿（`omarchy-shell shell toggle omarchy.clipboard`），另有預設快捷鍵 `Super+Ctrl+V`。v3 的 walker + elephant 自動貼上組合已淘汰
+- **OCR**：使用 `omarchy-capture-text`（v3 的 `-extraction` 後綴指令已改名），以 `OMARCHY_OCR_LANGS=eng+chi_tra` 支援中英混合
 
 ### setup-foot.sh — foot 終端機快捷鍵
 
@@ -144,16 +151,6 @@
 - **貼上**：`Shift+Insert` + `Ctrl+Shift+V`
 - **複製**：`Control+Insert`
 - 修改 `~/.config/foot/foot.ini` 的 `[key-bindings]` section，開新視窗生效
-
-### setup-gaming.sh — 遊戲相容性
-
-**目標：** gamescope 微合成器 + 遊戲視窗規則
-
-- **gamescope**：微合成器，把遊戲包在獨立的 Wayland 視窗中
-- **自訂視窗規則**：針對特定遊戲的 float/center 規則
-- **Steam 啟動選項範本**：`gamescope -W 1920 -H 1080 -f -- %command%`
-
-> 注意：Omarchy v3.7.0 已移除 `SDL_VIDEODRIVER` 環境變數（它反而會搞壞 Proton 遊戲）。本腳本不再設定任何 X11 相關 env vars。
 
 ### fix-chrome-keyring.sh — Chrome Keyring 修復
 
@@ -165,8 +162,8 @@
 
 ## 支援的作業系統
 
-- Omarchy Linux (Arch-based)
-- Hyprland (Wayland)
+- Omarchy Linux v4（Arch-based）— `master` branch；v3 請用 `v3` branch
+- Hyprland (Wayland，Lua 設定)
 - 需要有 `yay` 或 `paru`（AUR 助手） 或 `sudo` 可用
 
 ## 檔案結構
@@ -175,17 +172,14 @@
 .
 ├── lib/
 │   ├── common.sh                    # 共用函式庫（顏色、紀錄函數、套件管理等）
-│   ├── elephant-clipboard-activate.sh # walker 剪貼簿 → elephant 橋接
 │   └── AGENTS.md                    # DOX 子文件：lib 契約
 ├── AGENTS.md                        # DOX 根文件：專案契約與索引
 ├── setup-all.sh                     # 主程式，自動探索所有腳本 + 互動選單
 ├── setup-fonts.sh                   # 字體設定
 ├── setup-input.sh                   # 輸入法設定
 ├── setup-macos-input.sh             # 鍵盤/觸控板設定
-├── setup-keyboard-swap.sh           # 交換內建鍵盤 Super/Alt
 ├── setup-keybindings.sh             # 截圖/錄影/OCR/剪貼簿快捷鍵
 ├── setup-foot.sh                    # foot 終端機貼上/複製快捷鍵
-├── setup-gaming.sh                  # 遊戲相容性設定
 ├── setup-distrobox.sh               # Distrobox 容器工具
 ├── fix-chrome-keyring.sh            # Chrome keyring 密碼彈窗修復
 ├── fix-spotify-scale.sh             # Spotify 1080p 縮放修復
@@ -213,6 +207,7 @@
 - [ ] **冪等性測試**: 連續執行 `-i` 兩次，確認第二次執行後設定檔內容完全不變
 - [ ] **sed 安全性**: 所有 `sed` 取代字串中的 `&` 都必須跳脫為 `\&`
 - [ ] **grep 安全性**: 所有包含 `\s` 的 grep 都必須使用 `-E` flag
+- [ ] **grep 安全性**: pattern 以 `-` 開頭（如 `-- BEGIN ...` marker）必須加 `--` 分隔符
 - [ ] **狀態檢查**: `-s` 參數能正確判斷是否已安裝
 - [ ] **移除功能**: `-u` 能完全清理所有新增的內容
 - [ ] **無重複**: 連續執行兩次不會在設定檔中產生重複行
@@ -305,6 +300,22 @@ grep -Eq '^command\s*=' file
 
 ---
 
+### `grep` pattern 以 `-` 開頭會被當成選項
+
+**曾造成的 bug**: v4 marker 區塊偵測永遠失敗，每次執行都重複附加區塊
+
+```bash
+# ❌ 錯誤 - "-- BEGIN ..." 被當成 grep 的長選項，exit 2（ugrep 同樣）
+grep -qF "-- BEGIN macOS input settings" file
+
+# ✅ 正確 - 用 -- 分隔符明確結束選項解析
+grep -qF -- "-- BEGIN macOS input settings" file
+```
+
+**為什麼**: Lua 註解 marker 以 `--` 開頭，正好是長選項前綴。grep 回傳 2（錯誤）而非 0/1，「已安裝」檢查永遠不成立，`cat >>` 累加寫入就會重複堆疊。
+
+---
+
 ### 冪等性 (Idempotency) 檢查清單
 
 任何會修改設定檔的腳本，**跑兩次應該得到完全相同的結果**：
@@ -318,24 +329,23 @@ grep -Eq '^command\s*=' file
 
 ---
 
-### 剪貼簿設定除錯流程
+### Hyprland v4 Lua 設定驗證流程
 
 ```bash
-# 1. 檢查設定檔是否正常
-grep '^command' ~/.config/elephant/clipboard.toml
-# 應顯示: command = 'wl-copy && hyprctl dispatch sendshortcut "SHIFT, Insert, activewindow"'
-# （Hyprland 0.55+ 必須有第三個參數 activewindow，否則 "invalid args"）
+# 1. 套用腳本後驗證 Lua 設定無錯
+hyprctl reload && hyprctl configerrors   # 應無輸出
 
-# 2. 確認服務執行中
-pgrep -a elephant && pgrep -a walker
+# 2. 確認快捷鍵已註冊
+omarchy menu keybindings --print | grep -i "screenshot"
 
-# 3. 有問題就重啟
-systemctl --user restart elephant
+# 3. 確認選項生效（讀 runtime 值而非檔案）
+hyprctl getoption input:repeat_rate
+hyprctl getoption decoration:rounding
 
 # 4. 驗證腳本冪等性
 cd ~/omarchy-custom-scripts
-./setup-keybindings.sh -i   # 第一次
-./setup-keybindings.sh -i   # 第二次 → 設定檔內容必須完全相同
+./setup-macos-input.sh -i   # 第一次
+./setup-macos-input.sh -i   # 第二次 → 設定檔內容必須完全相同
 ```
 
 ## 授權

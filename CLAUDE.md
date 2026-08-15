@@ -6,11 +6,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Glass Omarchy Custom Scripts** - A collection of bash scripts for personalizing an Omarchy Linux (Arch-based) Hyprland environment with macOS-like behavior. The theme is "bringing macOS UX to Arch Linux".
 
+**Target: Omarchy v4** (`master` branch). Omarchy v3 machines use the `v3` branch. v4 switched Hyprland config to Lua (`~/.config/hypr/*.lua`) and supervises fcitx5 via systemd (`omarchy-fcitx5.service`).
+
 **Design Philosophy:**
 
 - Personal use only - not generic installation scripts
 - Fully automated - no GUI tools or interactive wizards
 - Idempotent - safe to re-run; can restore/reinstall without polluting system
+- Don't rewrite Omarchy templates - v4 Lua configs get marker-delimited blocks appended, preserving template comments and Omarchy defaults
 
 ## Code Architecture
 
@@ -35,14 +38,14 @@ All scripts follow this pattern:
 | Script | Purpose | Key Files Modified |
 | -------- | --------- | ------------------- |
 | `setup-fonts.sh` | Fonts + Chromium scale fix | `~/.config/fontconfig/fonts.conf`, `~/.config/chromium-flags.conf`, gsettings |
-| `setup-input.sh` | fcitx5-rime + Quick Cangjie input method | `~/.local/share/fcitx5/rime/*`, `~/.config/fcitx5/config` |
-| `setup-macos-input.sh` | macOS-like keyboard/trackpad behavior | `~/.config/hypr/input.conf` |
-| `setup-keyboard-swap.sh` | Swap Super/Alt on built-in keyboard (optional) | `~/.config/hypr/input.conf` |
+| `setup-input.sh` | fcitx5-rime + Quick Cangjie input method | `~/.local/share/fcitx5/rime/*`, `~/.config/fcitx5/{config,profile}` |
+| `setup-macos-input.sh` | macOS-like keyboard/trackpad behavior | `~/.config/hypr/input.lua` (marker block) |
 | `setup-distrobox.sh` | Distrobox + DistroShelf container tools | `~/.bashrc`, `~/.config/distrobox/distrobox.ini` |
-| `setup-keybindings.sh` | Custom screenshot/recording/clipboard bindings | `~/.config/hypr/bindings.conf`, `~/.config/elephant/clipboard.toml` |
+| `setup-keybindings.sh` | Custom screenshot/recording/clipboard bindings | `~/.config/hypr/bindings.lua` (marker block) |
 | `setup-foot.sh` | foot terminal paste/copy keybindings | `~/.config/foot/foot.ini` |
 | `fix-chrome-keyring.sh` | Fix Chrome keyring password popup | `~/.local/share/keyrings/*` |
-| `setup-gaming.sh` | Game compatibility for Wayland/Hyprland | `~/.config/hypr/envs.conf`, `~/.config/hypr/games.conf`, installs `gamescope` |
+
+Removed in v4 (kept on `v3` branch): `setup-keyboard-swap.sh`, `setup-gaming.sh`, `lib/elephant-clipboard-activate.sh`.
 
 ### Common Patterns Across All Scripts
 
@@ -72,18 +75,14 @@ This was the root cause of the clipboard manager corruption bug. Each run double
 
 #### **Wayland Input Tools - Use `hyprctl` over `wtype`**
 
-`wtype` sends keystrokes via the Wayland protocol, which requires a focused window. When a launcher like walker closes after item selection, there's a focus transition where `wtype` can't deliver keystrokes. Use `hyprctl dispatch sendshortcut` instead — it works at the compositor level:
+`wtype` sends keystrokes via the Wayland protocol, which requires a focused window and fails during focus transitions (e.g. right after a launcher closes). Use `hyprctl dispatch` instead — it works at the compositor level:
 
 ```bash
 # ❌ UNRELIABLE - fails during focus transitions
-command = 'wl-copy && sleep 0.2 && wtype -M shift -k Insert -m shift'
+wtype -M shift -k Insert -m shift
 
-# ❌ INVALID on Hyprland 0.55+ - sendshortcut now REQUIRES the 3rd field (window target)
-#   -> hyprctl prints "sendshortcut: invalid args", paste silently fails
-command = 'wl-copy && hyprctl dispatch sendshortcut "SHIFT, Insert,"'
-
-# ✅ CORRECT - compositor-level, no focus dependency (0.55+ syntax)
-command = 'wl-copy && hyprctl dispatch sendshortcut "SHIFT, Insert, activewindow"'
+# ✅ CORRECT - compositor-level, no focus dependency (Hyprland 0.55+ requires the 3rd field)
+hyprctl dispatch sendshortcut "SHIFT, Insert, activewindow"
 ```
 
 #### **grep Whitespace Regex - Use `-E` for `\s`**
@@ -98,13 +97,27 @@ grep -q '^command\s*=' file
 grep -Eq '^command\s*=' file
 ```
 
+#### **grep Pattern Starting with `-` (e.g. Lua markers)**
+
+A pattern that starts with `--` is parsed as a grep **option**, not a pattern — grep exits 2 and the guard check always fails, so append-style installs stack duplicates on every run (this broke all three v4 marker-block scripts until caught by `test-idempotency.sh`):
+
+```bash
+# ❌ BROKEN - "-- BEGIN ..." is treated as an (invalid) long option; exit 2
+grep -qF "-- BEGIN custom keybindings" file
+
+# ✅ CORRECT - `--` ends option parsing
+grep -qF -- "-- BEGIN custom keybindings" file
+```
+
+Applies to any grep where the pattern is a variable that may start with `-` (Lua comments, CLI flags in logs, etc.).
+
 #### **Idempotency is Mandatory - Test It**
 
 **Always run your script twice in a row** and verify the config file is identical both times:
 
 ```bash
-./script.sh -i && md5sum ~/.config/target.conf  # Run 1
-./script.sh -i && md5sum ~/.config/target.conf  # Run 2 - MUST match!
+./script.sh -i && md5sum ~/.config/target.lua  # Run 1
+./script.sh -i && md5sum ~/.config/target.lua  # Run 2 - MUST match!
 ```
 
 If the checksums differ, you have a stacking bug.
@@ -147,28 +160,22 @@ There is no formal test suite. Test by:
 
 ## Key Implementation Details
 
-### Hyprland Config Files
+### Hyprland Config Files (v4 Lua)
 
-- User configs go in `~/.config/hypr/`
-- `hyprland.conf` sources other files (input.conf, bindings.conf, envs.conf, games.conf)
-- Never edit `~/.local/share/omarchy/` (Omarchy defaults)
+- User configs go in `~/.config/hypr/*.lua` — auto-loaded after Omarchy defaults: `monitors.lua`, `input.lua`, `bindings.lua`, `looknfeel.lua`, `autostart.lua` (plus `hyprland.lua` itself for anything else)
+- Lua API: `hl.config({...})` for variables, `o.bind("KEYS", "desc", "cmd")` for bindings, `hl.unbind`, `o.window(class, rules)` for window rules, `hl.env`, `hl.curve`/`hl.animation` for animations
+- Our scripts append `-- BEGIN/END ... (setup-X.sh)` marker blocks; uninstall truncates from the BEGIN line to EOF (blocks are always appended at end of file)
+- Validate after any Lua change: `hyprctl reload && hyprctl configerrors` (empty output = clean); check bindings with `omarchy menu keybindings --print`
+- Never edit `/usr/share/omarchy/` or `~/.local/share/omarchy/` (Omarchy defaults; reading is fine)
 
 ### Input Method (fcitx5-rime)
 
 - Direct file manipulation (no `fcitx5-configtool`) because GUI tools block scripts
 - Rime schema files go in `~/.local/share/fcitx5/rime/`
-- Auto-deploy: kill fcitx5, restart, wait up to 10s for build
-
-### Per-device Keyboard Settings
-
-- Hyprland supports per-device XKB options via `input[<device>]:xkb_options = altwin:swap_alt_win`
-- Used by `setup-keyboard-swap.sh` to swap Super/Alt ONLY on built-in keyboard
-
-### Game Compatibility
-
-- `gamescope` is the standard fix for Unity/SDL games not showing windows on Wayland
-- Omarchy v3.7.0 removed `SDL_VIDEODRIVER` (it broke Proton games); games now auto-detect
-- Steam launch option: `gamescope -W 1920 -H 1080 -f -- %command%`
+- v4 runs fcitx5 under systemd: `systemctl --user restart omarchy-fcitx5.service` (never `killall` + manual start)
+- IM env vars (`QT_IM_MODULE` etc.) are Omarchy v4 defaults — scripts don't set them
+- The script checks/repairs `~/.config/fcitx5/profile` (post-v4-upgrade corruption left rime unreachable)
+- Auto-deploy: restart the service, wait up to 10s for `rime/build/`
 
 ## Adding New Features
 
@@ -186,7 +193,7 @@ Before merging any new script:
 
 - [ ] **Idempotency test**: Run `-i` twice, verify config file unchanged
 - [ ] **sed safety**: All `&` in sed replacements are escaped as `\&`
-- [ ] **grep safety**: All `\s` in grep use `-E` flag
+- [ ] **grep safety**: All `\s` in grep use `-E` flag; patterns starting with `-` use `--` separator
 - [ ] **Status check works**: `-s` correctly detects when installed
 - [ ] **Uninstall works**: `-u` completely removes all traces
 - [ ] **No duplicates**: Verify no duplicate lines in config after re-runs
@@ -194,7 +201,7 @@ Before merging any new script:
 ## Important Files to Reference
 
 - **README.md** - Contains detailed rationale for each design choice
-- **`setup-keybindings.sh`** - Contains the clipboard `sed &` bug fix reference; see "Pitfalls" below
+- **`setup-macos-input.sh` / `setup-looknfeel.sh` / `setup-keybindings.sh`** - Reference pattern for v4 marker-block Lua config scripts
 - **`setup-fonts.sh` / `setup-distrobox.sh`** - Good examples of proper guard patterns
 - **`setup-all.sh`** - Shows how all scripts are orchestrated
 

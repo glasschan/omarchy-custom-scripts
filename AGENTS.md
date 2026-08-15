@@ -5,7 +5,9 @@
 
 ## Purpose
 
-Personal Omarchy (Arch + Hyprland) macOS-style environment setup toolkit. Bash scripts that restore the user's desktop environment after a reinstall: fonts, input method (fcitx5-rime), keybindings, macOS-like input behavior, gaming compat, containers, and visual look & feel.
+Personal Omarchy (Arch + Hyprland) macOS-style environment setup toolkit. Bash scripts that restore the user's desktop environment after a reinstall: fonts, input method (fcitx5-rime), keybindings, macOS-like input behavior, containers, and visual look & feel.
+
+Branch mapping: `master` targets Omarchy v4 (Hyprland Lua configs, fcitx5 under systemd); the `v3` branch holds the last Omarchy v3-compatible versions (`setup-keyboard-swap.sh`, `setup-gaming.sh`, and the elephant/walker clipboard integration live only there).
 
 ## Ownership
 
@@ -18,13 +20,14 @@ Root owns: `setup-all.sh` (orchestrator + interactive menu), all `setup-*.sh` fe
 - Idempotency is mandatory: running `-i` twice must leave config files byte-identical (no duplicate lines, no stacking)
 - Scripts source `lib/common.sh` for logging/package helpers; never re-implement them locally
 - Package install chain: `paru` → `yay` → `sudo pacman` (via `install_package`)
-- Never edit `~/.local/share/omarchy/` (Omarchy defaults); user configs live in `~/.config/...`; uninstall reverts only what the script changed
+- Hyprland v4 Lua configs (`input.lua`, `looknfeel.lua`, `bindings.lua`) are modified by appending `-- BEGIN/END ... (setup-X.sh)` marker blocks — never rewrite the Omarchy template; `-u` truncates from the BEGIN marker to EOF
+- Never edit `/usr/share/omarchy/` or `~/.local/share/omarchy/` (Omarchy defaults); user configs live in `~/.config/...`; uninstall reverts only what the script changed
 - No interactive prompts during install except optional-feature confirmations
 
 ## Work Guidance
 
-- `CLAUDE.md` documents the hard-won bash pitfalls — read it before editing any script: escape `&` as `\&` in sed replacements, `\s` requires `grep -E`, use `hyprctl dispatch sendshortcut` instead of `wtype` on Wayland
-- New feature script: copy the structure of an existing one, then register it in `setup-all.sh` (menu entry, case statement, `install_all()`, `uninstall_all()`, `show_status()`)
+- `CLAUDE.md` documents the hard-won bash pitfalls — read it before editing any script: escape `&` as `\&` in sed replacements, `\s` requires `grep -E`, use `--` separator when a grep pattern starts with `-` (Lua markers), restart fcitx5 via `systemctl --user restart omarchy-fcitx5.service`
+- New Hyprland config script: copy the marker-block pattern from `setup-macos-input.sh`, then validate with `hyprctl reload && hyprctl configerrors`
 - Testing: run `-i` twice and compare checksums, then `-u` to verify clean removal
 
 ## Verification
@@ -110,4 +113,4 @@ When the user requests a durable behavior change, record it here or in the relev
 
 ## Child DOX Index
 
-- `lib/AGENTS.md` — shared library: `common.sh` helpers and `elephant-clipboard-activate.sh` bridge. Read before editing anything in `lib/`.
+- `lib/AGENTS.md` — shared library: `common.sh` helpers. Read before editing anything in `lib/`.

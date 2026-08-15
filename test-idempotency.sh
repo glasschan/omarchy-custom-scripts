@@ -117,7 +117,7 @@ main() {
 		# 測試單一腳本
 		case "$1" in
 		setup-keybindings.sh)
-			test_script "setup-keybindings.sh" "$HOME/.config/elephant/clipboard.toml"
+			test_script "setup-keybindings.sh" "$HOME/.config/hypr/bindings.lua"
 			;;
 		setup-fonts.sh)
 			test_script "setup-fonts.sh" "$HOME/.config/chromium-flags.conf"
@@ -125,23 +125,17 @@ main() {
 		setup-distrobox.sh)
 			test_script "setup-distrobox.sh" "$HOME/.bashrc"
 			;;
-		setup-gaming.sh)
-			test_script "setup-gaming.sh" "$HOME/.config/hypr/envs.conf"
-			;;
 		setup-foot.sh)
 			test_script "setup-foot.sh" "$HOME/.config/foot/foot.ini"
 			;;
 		setup-macos-input.sh)
-			test_script "setup-macos-input.sh" "$HOME/.config/hypr/input.conf"
+			test_script "setup-macos-input.sh" "$HOME/.config/hypr/input.lua"
 			;;
 		setup-input.sh)
 			test_script "setup-input.sh" "$HOME/.local/share/fcitx5/rime/scj6.custom.yaml"
 			;;
-		setup-keyboard-swap.sh)
-			test_script "setup-keyboard-swap.sh" "$HOME/.config/hypr/input.conf"
-			;;
 		setup-looknfeel.sh)
-			test_script "setup-looknfeel.sh" "$HOME/.config/hypr/looknfeel.conf"
+			test_script "setup-looknfeel.sh" "$HOME/.config/hypr/looknfeel.lua"
 			;;
 		fix-spotify-scale.sh)
 			test_script "fix-spotify-scale.sh" "$HOME/.config/spotify-flags.conf"
@@ -155,16 +149,14 @@ main() {
 		esac
 	else
 		# 測試所有腳本
-		for script in setup-fonts.sh setup-input.sh setup-macos-input.sh setup-keyboard-swap.sh setup-keybindings.sh setup-distrobox.sh setup-gaming.sh setup-looknfeel.sh fix-spotify-scale.sh fix-chrome-keyring.sh; do
+		for script in setup-fonts.sh setup-input.sh setup-macos-input.sh setup-keybindings.sh setup-distrobox.sh setup-looknfeel.sh fix-spotify-scale.sh fix-chrome-keyring.sh; do
 			case "$script" in
-			setup-keybindings.sh) test_script "$script" "$HOME/.config/elephant/clipboard.toml" ;;
+			setup-keybindings.sh) test_script "$script" "$HOME/.config/hypr/bindings.lua" ;;
 			setup-fonts.sh) test_script "$script" "$HOME/.config/chromium-flags.conf" ;;
 			setup-distrobox.sh) test_script "$script" "$HOME/.bashrc" ;;
-			setup-gaming.sh) test_script "$script" "$HOME/.config/hypr/envs.conf" ;;
-			setup-macos-input.sh) test_script "$script" "$HOME/.config/hypr/input.conf" ;;
-			setup-keyboard-swap.sh) test_script "$script" "$HOME/.config/hypr/input.conf" ;;
+			setup-macos-input.sh) test_script "$script" "$HOME/.config/hypr/input.lua" ;;
 			setup-input.sh) test_script "$script" "$HOME/.local/share/fcitx5/rime/scj6.custom.yaml" ;;
-			setup-looknfeel.sh) test_script "$script" "$HOME/.config/hypr/looknfeel.conf" ;;
+			setup-looknfeel.sh) test_script "$script" "$HOME/.config/hypr/looknfeel.lua" ;;
 			fix-spotify-scale.sh) test_script "$script" "$HOME/.config/spotify-flags.conf" ;;
 			fix-chrome-keyring.sh) test_script "$script" "$HOME/.local/share/keyrings/Default_keyring.keyring" ;;
 			esac

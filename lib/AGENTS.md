@@ -7,7 +7,6 @@ Shared helpers sourced by every script in the repo root. Eliminates code duplica
 ## Ownership
 
 - `common.sh` — logging (`info`/`warn`/`error`/`detail`/`header`), package management (`check_package`/`install_package`), config guards (`config_contains`/`ensure_dir`/`create_backup`), `confirm()`, `usage_template()`
-- `elephant-clipboard-activate.sh` — walker clipboard → elephant activate IPC bridge (enables auto-paste)
 
 ## Local Contracts
 
