@@ -105,13 +105,14 @@
 
 | 設定 | 值 | 為什麼 |
 | ------ | ----- | -------- |
+| kb_options | `compose:caps` | 還原 v3 值——v4 預設加咗 `shift:both_capslock_cancel`，會令 rime「單獨撳右 Shift 切中英文」失效 |
 | repeat_rate | 60 | Arch 預設 25 太慢，macOS 約 60 |
 | repeat_delay | 200ms | 比預設 660ms 短，更快開始重複 |
 | natural_scroll | true | macOS muscle memory |
 | tap_to_click | true | macOS trackpad 習慣 |
 | scroll_factor | 0.7 | 滾輪速度更快 |
 
-**v4 實作方式**：以 marker 區塊附加到 `~/.config/hypr/input.lua`（`hl.config({ input = ... })`），只覆蓋 macOS 相關項目；terminal 捲動規則 v4 預設已含（Alacritty/kitty/foot 1.5、ghostty 0.2），無需重複。
+**v4 實作方式**：以 marker 區塊附加到 `~/.config/hypr/input.lua`（`hl.config({ input = ... })`）；terminal 捲動規則 v4 預設已含（Alacritty/kitty/foot 1.5、ghostty 0.2），無需重複。
 
 ### setup-distrobox.sh — 容器環境
 

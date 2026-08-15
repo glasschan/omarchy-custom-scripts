@@ -176,6 +176,7 @@ There is no formal test suite. Test by:
 - IM env vars (`QT_IM_MODULE` etc.) are Omarchy v4 defaults — scripts don't set them
 - The script checks/repairs `~/.config/fcitx5/profile` (post-v4-upgrade corruption left rime unreachable)
 - Auto-deploy: restart the service, wait up to 10s for `rime/build/`
+- **kb_options must stay `compose:caps`** (v3 value): v4's default adds `shift:both_capslock_cancel`, which breaks rime's alone-Right-Shift CN/EN toggle (XKB-level interference). `setup-macos-input.sh` overrides this in its `input.lua` marker block — don't drop that line
 
 ## Adding New Features
 

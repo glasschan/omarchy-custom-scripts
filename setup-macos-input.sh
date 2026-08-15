@@ -40,7 +40,11 @@ strip_block() {
 setup_macos_input() {
     info "檢查 macOS 風格輸入設定..."
 
-    if check_macos_input; then
+    # -f/--force: 跳過存在性檢查，強制重新套用（用於腳本更新後重寫區塊）
+    local force=false
+    [[ "$1" == "-f" || "$1" == "--force" ]] && force=true
+
+    if ! $force && check_macos_input; then
         info "macOS 風格輸入已設定，跳過"
         return 0
     fi
@@ -49,15 +53,23 @@ setup_macos_input() {
     mkdir -p "$(dirname "$INPUT_LUA")"
     create_backup "$INPUT_LUA"
 
+    # -f 時先移除舊區塊再重加
+    strip_block
+
     cat >> "$INPUT_LUA" << 'EOF'
 
 -- BEGIN macOS input settings (setup-macos-input.sh)
 -- macOS 風格鍵盤/觸控板設定。
--- 只覆蓋 macOS 相關項目；kb_layout/kb_options 等跟隨 Omarchy v4 預設
+-- kb_options 覆蓋 v4 預設：v4 新加 shift:both_capslock_cancel 會令 rime
+-- 「單獨撳右 Shift 切中英文」失效（XKB 層干擾 alone-Shift 偵測），
+-- v3 用 compose:caps 冇問題，故還原 v3 值。
 -- (v4 預設 terminal 捲動規則已含 Alacritty|kitty|foot 1.5 / ghostty 0.2，
 --  無需在此重複設定)。
 hl.config({
   input = {
+    -- 還原 v3 鍵盤選項：移除 v4 嘅 shift:both_capslock_cancel（會破壞 rime 右 Shift 切換）
+    kb_options = "compose:caps",
+
     -- macOS-like keyboard repeat settings
     repeat_rate = 60,
     repeat_delay = 200,
@@ -133,10 +145,11 @@ show_status() {
 # 安裝模式
 install() {
     info "開始設定 macOS 風格輸入..."
-    setup_macos_input
+    setup_macos_input "$1"
     info "macOS 風格輸入設定完成！"
     info ""
     info "設定內容:"
+    info "  - kb_options: compose:caps (移除 v4 shift:capslock_cancel，保留 rime 右 Shift 切換)"
     info "  - 鍵盤重複率: 60 (更快)"
     info "  - 重複延遲: 200ms (更短)"
     info "  - 自然捲動: 開啟 (mouse + touchpad)"
@@ -159,6 +172,7 @@ usage() {
     echo ""
     echo "Options:"
     echo "  -i, --install     安裝/設定 macOS 風格輸入 (預設)"
+    echo "  -f, --force       強制重新套用（跳過重複檢查，重寫區塊）"
     echo "  -u, --uninstall   還原輸入設定"
     echo "  -s, --status      顯示目前狀態"
     echo "  -h, --help        顯示此說明"
@@ -179,6 +193,9 @@ main() {
             ;;
         -h|--help)
             usage
+            ;;
+        -f|--force)
+            install --force
             ;;
         -i|--install|"")
             install
