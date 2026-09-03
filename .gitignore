@@ -3,3 +3,7 @@
 
 # Idempotency test artifacts
 *.bak.idempotency_test
+
+# Agent scratch dirs
+.opencode/
+.codegraph/

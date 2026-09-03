@@ -4,6 +4,7 @@
 # 安裝 Distrobox + DistroShelf，設定 alias
 # Category: 容器工具
 # Description: 安裝 Distrobox + DistroShelf
+# Device: both
 
 SCRIPT_NAME="$(basename "$0")"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

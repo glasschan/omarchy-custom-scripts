@@ -1,18 +1,13 @@
 #!/bin/bash
 
 # setup-keybindings.sh
-# 設定自訂快捷鍵 - 截圖、錄影、剪貼簿管理 (Omarchy v4 Lua 設定)
-# - ALT SHIFT + Q: 區域截圖
-# - ALT SHIFT + E: 視窗截圖
-# - ALT SHIFT + F: 全螢幕截圖
-# - ALT SHIFT + R: 螢幕錄影
-# - ALT SHIFT CTRL + R: 螢幕錄影 (含攝影機)
-# - ALT SHIFT + A: 顏色選擇器
-# - ALT SHIFT + O: OCR 文字辨識
+# 設定自訂快捷鍵 - 剪貼簿管理 (Omarchy v4 Lua 設定)
 # - CTRL + `: 開啟剪貼簿管理員 (Omarchy v4 內建)
+# 截圖/錄影/OCR/取色快捷鍵已由 OmaSwiss plugin 嘅 Quick capture 取代 (2026-09 移除)
 # 以 marker 區塊附加到 ~/.config/hypr/bindings.lua，唔會重寫整個檔案
 # Category: 快捷鍵
-# Description: 設定截圖/錄影/剪貼簿快捷鍵
+# Description: 設定剪貼簿管理員快捷鍵
+# Device: both
 
 SCRIPT_NAME="$(basename "$0")"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -24,23 +19,6 @@ BINDINGS_LUA="$HOME/.config/hypr/bindings.lua"
 
 BEGIN_MARKER="-- BEGIN custom keybindings (setup-keybindings.sh)"
 END_MARKER="-- END custom keybindings (setup-keybindings.sh)"
-
-# 檢查依賴
-check_dependencies() {
-    info "檢查依賴..."
-
-    if ! command -v omarchy-capture-screenshot &>/dev/null; then
-        error "omarchy-capture-screenshot 未安裝（需要 Omarchy v4）"
-        exit 1
-    fi
-
-    if ! tesseract --list-langs 2>/dev/null | grep -q "chi_tra"; then
-        error "tesseract-data-chi_tra 未安裝，請先安裝以使用 OCR 功能"
-        exit 1
-    fi
-
-    info "依賴檢查完成"
-}
 
 # 檢查是否已安裝
 is_installed() {
@@ -75,22 +53,8 @@ setup_hypr_keybindings() {
     cat >>"$BINDINGS_LUA" <<'EOF'
 
 -- BEGIN custom keybindings (setup-keybindings.sh)
--- 截圖（v4 預設 PRINT 已有截圖；以下係 ALT SHIFT 組合鍵）
-o.bind("ALT + SHIFT + Q", "Screenshot (region)", "omarchy-capture-screenshot region")
-o.bind("ALT + SHIFT + E", "Screenshot (window)", "omarchy-capture-screenshot windows")
-o.bind("ALT + SHIFT + F", "Screenshot (fullscreen)", "omarchy-capture-screenshot fullscreen")
-
--- Color picker
-o.bind("ALT + SHIFT + A", "Color picker", "pkill hyprpicker || hyprpicker -a")
-
--- Screen recording
-o.bind("ALT + SHIFT + R", "Screen recording", "omarchy-capture-screenrecording")
-o.bind("ALT + SHIFT + CTRL + R", "Screen recording (with camera)", "omarchy-capture-screenrecording --with-webcam")
-
--- OCR text extraction (中英混合)
-o.bind("ALT + SHIFT + O", "Extract text (OCR)", "env OMARCHY_OCR_LANGS=eng+chi_tra omarchy-capture-text")
-
--- Clipboard manager (Omarchy v4 內建剪貼簿，取代 v3 walker + elephant)
+-- Clipboard manager (Omarchy v4 內建剪貼簿，取代 v3 walker + elephant；
+-- 另有 Omarchy 預設 SUPER+CTRL+V)
 o.bind("CTRL + grave", "Clipboard manager", "omarchy-shell shell toggle omarchy.clipboard")
 -- END custom keybindings (setup-keybindings.sh)
 EOF
@@ -151,7 +115,6 @@ usage() {
 install() {
     info "開始設定自訂快捷鍵..."
 
-    check_dependencies
     setup_hypr_keybindings
 
     echo
@@ -160,14 +123,7 @@ install() {
     info "=============================="
     echo
     echo "新增的快捷鍵："
-    echo "  ALT SHIFT + Q      → 區域截圖"
-    echo "  ALT SHIFT + E      → 視窗選取截圖"
-    echo "  ALT SHIFT + F      → 全螢幕截圖"
-    echo "  ALT SHIFT + R      → 開始螢幕錄影"
-    echo "  ALT SHIFT CTRL + R → 開始螢幕錄影 (含攝影機)"
-    echo "  ALT SHIFT + A      → 顏色選擇器"
-    echo "  ALT SHIFT + O      → OCR 文字辨識 (中英混合)"
-    echo '  CTRL + `           → 開啟剪貼簿管理員 (Omarchy 內建)'
+    echo '  CTRL + `           → 開啟剪貼簿管理員 (Omarchy v4 內建)'
     echo
     echo "剪貼簿管理員亦可用預設快捷鍵 SUPER+CTRL+V 開啟"
     echo

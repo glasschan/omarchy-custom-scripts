@@ -37,13 +37,13 @@ All scripts follow this pattern:
 
 | Script | Purpose | Key Files Modified |
 | -------- | --------- | ------------------- |
-| `setup-fonts.sh` | Fonts + Chromium scale fix | `~/.config/fontconfig/fonts.conf`, `~/.config/chromium-flags.conf`, gsettings |
-| `setup-input.sh` | fcitx5-rime + Quick Cangjie input method | `~/.local/share/fcitx5/rime/*`, `~/.config/fcitx5/{config,profile}` |
-| `setup-macos-input.sh` | macOS-like keyboard/trackpad behavior | `~/.config/hypr/input.lua` (marker block) |
+| `install-wizard.sh` | Interactive TUI installer (lazy-pack style): device prompt, checkbox menu, submenus | runs selected setup scripts' `-i` |
+| `setup-fonts.sh` | Install choice of CJK fonts, no system-font change | `~/.local/share/fonts/`; `--fonts misans,opposans` |
+| `setup-input.sh` | fcitx5-rime + selectable schema set | `~/.local/share/fcitx5/rime/*`, `~/.config/fcitx5/{config,profile}`; `--schemas scj6,quick5,…` |
+| `setup-keyboard.sh` | Keyboard repeat/caps/numlock | `~/.config/hypr/input.lua` (marker block) |
+| `setup-macos-touchpad.sh` | Laptop touchpad macOS style | `~/.config/hypr/input.lua` (marker block) |
 | `setup-distrobox.sh` | Distrobox + DistroShelf container tools | `~/.bashrc`, `~/.config/distrobox/distrobox.ini` |
-| `setup-keybindings.sh` | Custom screenshot/recording/clipboard bindings | `~/.config/hypr/bindings.lua` (marker block) |
-| `setup-foot.sh` | foot terminal paste/copy keybindings | `~/.config/foot/foot.ini` |
-| `fix-chrome-keyring.sh` | Fix Chrome keyring password popup | `~/.local/share/keyrings/*` |
+| `setup-keybindings.sh` | Clipboard manager binding | `~/.config/hypr/bindings.lua` (marker block) |
 
 Removed in v4 (kept on `v3` branch): `setup-keyboard-swap.sh`, `setup-gaming.sh`, `lib/elephant-clipboard-activate.sh`.
 
@@ -202,7 +202,7 @@ Before merging any new script:
 ## Important Files to Reference
 
 - **README.md** - Contains detailed rationale for each design choice
-- **`setup-macos-input.sh` / `setup-looknfeel.sh` / `setup-keybindings.sh`** - Reference pattern for v4 marker-block Lua config scripts
+- **`setup-macos-input.sh` / `setup-keybindings.sh`** - Reference pattern for v4 marker-block Lua config scripts
 - **`setup-fonts.sh` / `setup-distrobox.sh`** - Good examples of proper guard patterns
 - **`setup-all.sh`** - Shows how all scripts are orchestrated
 

@@ -125,23 +125,17 @@ main() {
 		setup-distrobox.sh)
 			test_script "setup-distrobox.sh" "$HOME/.bashrc"
 			;;
-		setup-foot.sh)
-			test_script "setup-foot.sh" "$HOME/.config/foot/foot.ini"
+		setup-keyboard.sh)
+			test_script "setup-keyboard.sh" "$HOME/.config/hypr/input.lua"
 			;;
-		setup-macos-input.sh)
-			test_script "setup-macos-input.sh" "$HOME/.config/hypr/input.lua"
+		setup-macos-touchpad.sh)
+			test_script "setup-macos-touchpad.sh" "$HOME/.config/hypr/input.lua"
 			;;
 		setup-input.sh)
 			test_script "setup-input.sh" "$HOME/.local/share/fcitx5/rime/scj6.custom.yaml"
 			;;
-		setup-looknfeel.sh)
-			test_script "setup-looknfeel.sh" "$HOME/.config/hypr/looknfeel.lua"
-			;;
 		fix-spotify-scale.sh)
 			test_script "fix-spotify-scale.sh" "$HOME/.config/spotify-flags.conf"
-			;;
-		fix-chrome-keyring.sh)
-			test_script "fix-chrome-keyring.sh" "$HOME/.local/share/keyrings/Default_keyring.keyring"
 			;;
 		*)
 			error "未知腳本: $1"
@@ -149,16 +143,15 @@ main() {
 		esac
 	else
 		# 測試所有腳本
-		for script in setup-fonts.sh setup-input.sh setup-macos-input.sh setup-keybindings.sh setup-distrobox.sh setup-looknfeel.sh fix-spotify-scale.sh fix-chrome-keyring.sh; do
+		for script in setup-fonts.sh setup-input.sh setup-keyboard.sh setup-macos-touchpad.sh setup-keybindings.sh setup-distrobox.sh fix-spotify-scale.sh; do
 			case "$script" in
 			setup-keybindings.sh) test_script "$script" "$HOME/.config/hypr/bindings.lua" ;;
 			setup-fonts.sh) test_script "$script" "$HOME/.config/chromium-flags.conf" ;;
 			setup-distrobox.sh) test_script "$script" "$HOME/.bashrc" ;;
-			setup-macos-input.sh) test_script "$script" "$HOME/.config/hypr/input.lua" ;;
+			setup-keyboard.sh) test_script "$script" "$HOME/.config/hypr/input.lua" ;;
+			setup-macos-touchpad.sh) test_script "$script" "$HOME/.config/hypr/input.lua" ;;
 			setup-input.sh) test_script "$script" "$HOME/.local/share/fcitx5/rime/scj6.custom.yaml" ;;
-			setup-looknfeel.sh) test_script "$script" "$HOME/.config/hypr/looknfeel.lua" ;;
 			fix-spotify-scale.sh) test_script "$script" "$HOME/.config/spotify-flags.conf" ;;
-			fix-chrome-keyring.sh) test_script "$script" "$HOME/.local/share/keyrings/Default_keyring.keyring" ;;
 			esac
 		done
 	fi

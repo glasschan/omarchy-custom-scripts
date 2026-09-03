@@ -6,6 +6,7 @@
 # 環境變數 (QT_IM_MODULE 等) 已是 Omarchy 預設，此腳本只需管理 rime 設定檔
 # Category: 輸入法
 # Description: 安裝 Fcitx5 + 快速倉頡
+# Device: both
 
 SCRIPT_NAME="$(basename "$0")"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -15,6 +16,50 @@ source "$SCRIPT_DIR/lib/common.sh"
 
 RIME_DIR="$HOME/.local/share/fcitx5/rime"
 FCITX5_PROFILE="$HOME/.config/fcitx5/profile"
+
+# 可選 RIME 輸入方案: id -> GitHub repo
+# scj6 快速倉頡（三代+五代碼兼收）; cangjie5 倉頡五代;
+# quick5 速成; bopomofo 注音; luna_pinyin 朙月拼音;
+# jyutping 粵拼; boshiamy 嘸蝦米
+declare -A SCHEMA_REPOS=(
+    [scj6]="rime/rime-scj"
+    [cangjie5]="rime/rime-cangjie"
+    [quick5]="rime/rime-quick"
+    [bopomofo]="rime/rime-bopomofo"
+    [luna_pinyin]="rime/rime-pinyin"
+    [jyutping]="rime/rime-jyutping"
+    [boshiamy]="yorkxin/rime-boshiamy"
+)
+
+# 記錄已安裝 / 由本 script 管理嘅 schema (uninstall 時用)
+CHOSEN_SCHEMAS_FILE="$RIME_DIR/.omarchy-schemas"
+
+# 中英切換用邊邊 Shift (left|right, 預設 right)
+SHIFT_SIDE="right"
+parse_shift_arg() {
+    local val="${1:-right}"
+    case "$val" in
+        left) SHIFT_SIDE="left" ;;
+        right) SHIFT_SIDE="right" ;;
+        *) warn "忽略無效 shift 值: $val (可用: left, right)" ;;
+    esac
+}
+
+# 抽傳入嘅 schema 列表(逗號或空格分隔),放入 $SCHEMAS 全域 array
+SCHEMAS=()
+parse_schemas_arg() {
+    local raw="$1"
+    local normalized
+    normalized=$(echo "$raw" | tr ',' ' ')
+    local id
+    for id in $normalized; do
+        if [[ -n "${SCHEMA_REPOS[$id]:-}" ]]; then
+            SCHEMAS+=("$id")
+        else
+            warn "忽略未知輸入方案: $id"
+        fi
+    done
+}
 
 # 檢查 rime-scj 是否安裝
 check_rime_scj() {
@@ -31,16 +76,27 @@ check_scj6_custom() {
     fi
 }
 
-# 檢查 default.custom.yaml
+# 檢查 default.custom.yaml 是否包含全部指定 schemas + 指定 shift side
 check_default_custom() {
-    if [[ -f "$RIME_DIR/default.custom.yaml" ]]; then
-        grep -q "schema: scj6" "$RIME_DIR/default.custom.yaml" && \
-        grep -q "schema: cangjie5" "$RIME_DIR/default.custom.yaml" && \
-        grep -q "ascii_composer" "$RIME_DIR/default.custom.yaml" && \
-        grep -q "switcher" "$RIME_DIR/default.custom.yaml"
+    local schemas=("$@")
+    [[ ${#schemas[@]} -eq 0 ]] && schemas=(scj6)
+    [[ -f "$RIME_DIR/default.custom.yaml" ]] || return 1
+    grep -q "switcher" "$RIME_DIR/default.custom.yaml" || return 1
+    grep -q "ascii_composer" "$RIME_DIR/default.custom.yaml" || return 1
+    # 中英切換 shift side
+    local expect_l expect_r
+    if [[ "$SHIFT_SIDE" == "left" ]]; then
+        expect_l="commit_code"; expect_r="noop"
     else
-        return 1
+        expect_l="noop"; expect_r="commit_code"
     fi
+    grep -q "Shift_L: $expect_l" "$RIME_DIR/default.custom.yaml" || return 1
+    grep -q "Shift_R: $expect_r" "$RIME_DIR/default.custom.yaml" || return 1
+    local s
+    for s in "${schemas[@]}"; do
+        grep -q "schema: $s" "$RIME_DIR/default.custom.yaml" || return 1
+    done
+    return 0
 }
 
 # 檢查 fcitx5 config 中的 AltTriggerKeys 是否綁定 Shift_L
@@ -81,35 +137,71 @@ setup_fcitx5_config() {
     install_package "fcitx5-config-qt"
 }
 
-# 安裝 rime-scj
-setup_rime_scj() {
-    info "檢查 rime-scj..."
+# 安裝一個 RIME 方案 (repo 由 SCHEMA_REPOS 提供)
+install_schema() {
+    local id="$1"
+    local repo="${SCHEMA_REPOS[$id]}"
 
-    if check_rime_scj; then
-        info "rime-scj 已安裝，跳過"
+    if [[ -f "$RIME_DIR/$id.schema.yaml" ]]; then
+        info "$id 已安裝，跳過"
         return 0
     fi
 
-    info "下載並安裝 rime-scj..."
+    info "下載並安裝 $id ($repo)..."
     mkdir -p "$RIME_DIR"
 
-    local temp_dir=$(mktemp -d)
-    git clone --depth 1 https://github.com/rime/rime-scj.git "$temp_dir"
+    local temp_dir
+    temp_dir=$(mktemp -d)
+    git clone --depth 1 "https://github.com/$repo.git" "$temp_dir"
 
-    cp "$temp_dir"/*.yaml "$RIME_DIR/"
+    # 大多 repo 嘅 schema/dict 喺 root;fallback 搵一層
+    cp "$temp_dir"/*.yaml "$RIME_DIR/" 2>/dev/null || true
+    if ! [[ -f "$RIME_DIR/$id.schema.yaml" ]]; then
+        find "$temp_dir" -maxdepth 1 -name "*.schema.yaml" -exec cp {} "$RIME_DIR/" \;
+        find "$temp_dir" -maxdepth 1 -name "*.dict.yaml" -exec cp {} "$RIME_DIR/" \;
+    fi
     rm -rf "$temp_dir"
 
-    detail "已安裝檔案:"
-    ls -la "$RIME_DIR"/scj6.* | sed 's/^/  /'
+    if [[ -f "$RIME_DIR/$id.schema.yaml" ]]; then
+        # 記錄由本 script 管理 (uninstall 時清走)
+        if ! grep -q "^$id$" "$CHOSEN_SCHEMAS_FILE" 2>/dev/null; then
+            echo "$id" >> "$CHOSEN_SCHEMAS_FILE"
+        fi
+        info "$id 安裝完成"
+        return 0
+    fi
 
-    info "rime-scj 安裝完成"
+    warn "$id 安裝失敗: $RIME_DIR/$id.schema.yaml 不存在"
+    return 1
 }
 
-# 移除 rime-scj
-remove_rime_scj() {
-    info "移除 rime-scj..."
-    rm -f "$RIME_DIR"/scj6.*
-    info "rime-scj 已移除"
+# 移除單一 scheme 嘅檔案 (schema + dict,唔郁 custom yaml)
+remove_schema() {
+    local id="$1"
+    [[ -d "$RIME_DIR" ]] || return 0
+    rm -f "$RIME_DIR/${id}".schema.yaml "$RIME_DIR/${id}".dict.yaml \
+          "$RIME_DIR/${id}".*.dict.yaml 2>/dev/null || true
+}
+
+# 移除所有本 script 管理嘅 schema (uninstall 用)
+remove_all_schemas() {
+    if [[ ! -f "$CHOSEN_SCHEMAS_FILE" ]]; then
+        warn "搵唔到已安裝記錄 ($CHOSEN_SCHEMAS_FILE),跳過移除 schema"
+        return 0
+    fi
+    local id
+    while read -r id; do
+        [[ -n "$id" ]] || continue
+        info "移除 schema: $id..."
+        rm -f "$RIME_DIR/$id".*
+    done < "$CHOSEN_SCHEMAS_FILE"
+    rm -f "$CHOSEN_SCHEMAS_FILE"
+    info "schema 移除完成"
+}
+
+# 安裝 rime-scj (見 $SCHEMAS)
+setup_rime_scj() {
+    install_schema scj6
 }
 
 # 設定 scj6.custom.yaml
@@ -147,22 +239,34 @@ remove_scj6_custom() {
 
 # 設定 default.custom.yaml
 setup_default_custom() {
-    info "檢查 default.custom.yaml..."
+    local schemas=("$@")
+    [[ ${#schemas[@]} -eq 0 ]] && schemas=(scj6)
 
-    if check_default_custom; then
+    if check_default_custom "${schemas[@]}"; then
         info "default.custom.yaml 已設定，跳過"
         return 0
     fi
 
-    info "建立 default.custom.yaml..."
+    info "建立 default.custom.yaml (中英切換: ${SHIFT_SIDE} Shift)..."
     mkdir -p "$RIME_DIR"
 
-    cat > "$RIME_DIR/default.custom.yaml" << 'EOF'
-patch:
-  schema_list:
-    - schema: scj6
-    - schema: cangjie5
-    - schema: luna_pinyin
+    local shift_l shift_r
+    if [[ "$SHIFT_SIDE" == "left" ]]; then
+        shift_l="commit_code"
+        shift_r="noop"
+    else
+        shift_l="noop"
+        shift_r="commit_code"
+    fi
+
+    {
+        echo "patch:"
+        echo "  schema_list:"
+        local s
+        for s in "${schemas[@]}"; do
+            echo "    - schema: $s"
+        done
+        cat <<EOF
   menu:
     page_size: 5
   switcher:
@@ -170,13 +274,14 @@ patch:
       - F4
   ascii_composer:
     switch_key:
-      Shift_L: noop
-      Shift_R: commit_code
+      Shift_L: $shift_l
+      Shift_R: $shift_r
       Control_L: noop
       Control_R: noop
       Caps_Lock: noop
       Eisu_toggle: noop
 EOF
+    } > "$RIME_DIR/default.custom.yaml"
 
     detail "default.custom.yaml 內容:"
     cat "$RIME_DIR/default.custom.yaml" | sed 's/^/  /'
@@ -340,10 +445,15 @@ show_status() {
 
 # 安裝模式
 install() {
-    info "開始設定 fcitx5-rime + 快速倉頡..."
+    info "開始設定 fcitx5-rime 輸入法..."
 
     local need_redeploy=false
     local need_fcitx5_restart=false
+
+    # 冇指定 --schemas 時,預設只啟用快速倉頡
+    if [[ ${#SCHEMAS[@]} -eq 0 ]]; then
+        SCHEMAS=(scj6)
+    fi
 
     if ! check_package "fcitx5-rime"; then
         setup_fcitx5_rime
@@ -354,18 +464,26 @@ install() {
         setup_fcitx5_config
     fi
 
-    if ! check_rime_scj; then
-        setup_rime_scj
-        need_redeploy=true
-    fi
+    local s
+    local installed_schemas=()
+    for s in "${SCHEMAS[@]}"; do
+        if install_schema "$s"; then
+            installed_schemas+=("$s")
+            need_redeploy=true
+        else
+            warn "$s 安裝失敗,唔加入方案列表"
+        fi
+    done
+    SCHEMAS=("${installed_schemas[@]}")
 
-    if ! check_scj6_custom; then
+    # scj6 獨特:啟動時預設英文模式
+    if [[ " ${SCHEMAS[*]} " == *" scj6 "* ]] && ! check_scj6_custom; then
         setup_scj6_custom
         need_redeploy=true
     fi
 
-    if ! check_default_custom; then
-        setup_default_custom
+    if ! check_default_custom "${SCHEMAS[@]}"; then
+        setup_default_custom "${SCHEMAS[@]}"
         need_redeploy=true
     fi
 
@@ -389,22 +507,20 @@ install() {
 
     info ""
     info "設定完成！"
+    info "已啟用方案: ${SCHEMAS[*]}"
     info "快捷鍵："
     info "  - F4: 切換輸入法方案"
     info "  - 右 Shift: 切換中英文"
     info "  - 左 Shift: 不會觸發中英文切換"
-    info "  - 快速倉頡 (scj6): 已設定為預設，啟動時為英文模式"
-    info "  - 倉頡五代 (cangjie5): 已加入方案列表"
-    info "  - 朙月拼音 (luna_pinyin): 已加入方案列表"
 }
 
 # 解除安裝模式
 uninstall() {
     info "開始還原 fcitx5-rime 設定..."
 
+    remove_all_schemas
     remove_scj6_custom
     remove_default_custom
-    remove_rime_scj
 
     info "fcitx5-rime 設定已還原！"
     info "注意: fcitx5-rime 套件未被移除，如需移除請手動執行:"
@@ -420,10 +536,23 @@ usage() {
     echo "  -u, --uninstall   還原輸入法設定"
     echo "  -s, --status      顯示目前狀態"
     echo "  -h, --help        顯示此說明"
+    echo "  --schemas <list>  指定要安裝嘅 RIME 方案,逗號或空格分隔"
+    echo "  --shift <side>    中英切換用邊隻 Shift (left|right, 預設 right)"
+    echo ""
+    echo "可用方案:"
+    echo "  scj6        快速倉頡 (預設, 三代+五代)"
+    echo "  cangjie5    倉頡五代"
+    echo "  quick5      速成"
+    echo "  bopomofo    注音"
+    echo "  luna_pinyin 朙月拼音"
+    echo "  jyutping    粵拼"
+    echo "  boshiamy    嘸蝦米"
     echo ""
     echo "Examples:"
-    echo "  $SCRIPT_NAME              # 設定輸入法"
-    echo "  $SCRIPT_NAME -s           # 顯示狀態"
+    echo "  $SCRIPT_NAME                              # 全部預設 (快速倉頡, 右 Shift 切中英)"
+    echo "  $SCRIPT_NAME --schemas scj6,quick5     # 安裝快速倉頡 + 速成"
+    echo "  $SCRIPT_NAME --shift left              # 左 Shift 切中英"
+    echo "  $SCRIPT_NAME -s                        # 顯示狀態"
 }
 
 # 主程式
@@ -437,6 +566,16 @@ main() {
             ;;
         -h|--help)
             usage
+            ;;
+        --schemas)
+            shift
+            parse_schemas_arg "${1:-}"
+            install
+            ;;
+        --shift)
+            shift
+            parse_shift_arg "${1:-}"
+            install
             ;;
         -i|--install|"")
             install
