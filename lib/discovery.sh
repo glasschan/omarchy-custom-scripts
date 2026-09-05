@@ -54,6 +54,29 @@ get_script_device() {
     esac
 }
 
+# ========================================
+# Device Applicability
+# ========================================
+
+# 本機裝置類型 (laptop|desktop)
+# 用 hostnamectl chassis 偵測;流動類型 (convertible/tablet/detachable 等)
+# 當 laptop,偵測失敗亦當 laptop — touchpad 設定喺桌面機無害,寧可多裝
+current_device() {
+    local chassis
+    chassis=$(hostnamectl chassis 2>/dev/null)
+    case "$chassis" in
+        desktop|server|mini|stick|vm|container) echo "desktop" ;;
+        *) echo "laptop" ;;
+    esac
+}
+
+# script (Device: laptop|desktop|both) 是否適用於本機
+script_applies_here() {
+    local dev
+    dev=$(get_script_device "$1")
+    [[ "$dev" == "both" || "$dev" == "$(current_device)" ]]
+}
+
 # Discover all setup scripts (exclude setup-all.sh itself)
 discover_scripts() {
     local scripts=()

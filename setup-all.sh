@@ -112,6 +112,11 @@ install_all() {
     local first=true
 
     for script in "${scripts[@]}"; do
+        # Device 分流:唔適用本機嘅 script 跳過 (wizard 問用戶,呢度自動偵測)
+        if ! script_applies_here "$script"; then
+            info "略過 $script (Device 唔適用本機: $(current_device))"
+            continue
+        fi
         $first || echo ""
         first=false
         run_script "$script" "-i"

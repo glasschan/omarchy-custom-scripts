@@ -15,8 +15,8 @@ Root owns: `install-wizard.sh` (interactive checkbox installer for Chinese users
 
 ## Local Contracts
 
-- Every setup/fix script must support `-i` install, `-u` uninstall/restore, `-s` status check, `-h` help
-- Every script declares `# Category:`, `# Description:` and `# Device: laptop|desktop|both` metadata headers — `setup-all.sh`/`install-wizard.sh` auto-discover from these; a new script without them never appears in the menu
+- Every setup/fix script must support `-i` install, `-u` uninstall/restore, `-s` status check, `-h` help; scripts that write config blocks also support `-f/--force` (skip the installed-check, rewrite the block — needed after block content changes)
+- Every script declares `# Category:`, `# Description:` and `# Device: laptop|desktop|both` metadata headers — `setup-all.sh`/`install-wizard.sh` auto-discover from these; a new script without them never appears in the menu. Device filtering: the wizard asks the user; `setup-all.sh` auto-detects via `lib/discovery.sh` (`current_device`) and skips non-applicable scripts on install (uninstall/status stay unfiltered)
 - Idempotency is mandatory: running `-i` twice must leave config files byte-identical (no duplicate lines, no stacking)
 - Scripts source `lib/common.sh` for logging/package helpers and `lib/discovery.sh` for script discovery; never re-implement them locally
 - Package install chain: `paru` → `yay` → `sudo pacman` (via `install_package`)

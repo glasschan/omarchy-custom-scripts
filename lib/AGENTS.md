@@ -7,7 +7,7 @@ Shared helpers sourced by every script in the repo root. Eliminates code duplica
 ## Ownership
 
 - `common.sh` — logging (`info`/`warn`/`error`/`detail`/`header`), package management (`check_package`/`install_package`), config guards (`config_contains`/`ensure_dir`/`create_backup`), `confirm()`, `usage_template()`
-- `discovery.sh` — script discovery for front-ends: `get_script_metadata`, `get_script_category`, `get_script_description`, `discover_scripts`, `group_scripts_by_category`, `get_scripts_in_category` (extracted from `setup-all.sh`)
+- `discovery.sh` — script discovery for front-ends: `get_script_metadata`, `get_script_category`, `get_script_description`, `get_script_device`, `discover_scripts`, `group_scripts_by_category`, `get_scripts_in_category` (extracted from `setup-all.sh`); device applicability: `current_device` (hostnamectl-based laptop/desktop detection, fails open to laptop), `script_applies_here` (Device: both or matches this machine)
 
 ## Local Contracts
 
