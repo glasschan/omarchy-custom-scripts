@@ -14,29 +14,34 @@
 - **個人用途**：不是通用的安裝腳本，是為了自己每次重灌後能快速恢復工作環境
 - **自動化**：所有設定都透過 script 完成，不依賴 GUI 工具或互動精靈
 - **可重複**：可以隨時還原/重新安裝，不會汙染系統
-- **不重寫 Omarchy 範本**：v4 的 `input.lua` / `looknfeel.lua` / `bindings.lua` 以 marker 區塊附加，保留範本註解與 Omarchy 預設
+- **不重寫 Omarchy 範本**：v4 的 `input.lua` / `bindings.lua` 以 marker 區塊附加，保留範本註解與 Omarchy 預設
 
 ## 功能總覽
 
 | 分類 | 腳本 | 功能 |
 | ------ | ------ | ------ |
 | **系統設定** | `setup-fonts.sh` | 字體 + Chromium scale 修復 |
-| **系統設定** | `setup-looknfeel.sh` | Hyprland Look & Feel（圓角、陰影、動畫、白色邊框） |
 | **輸入法** | `setup-input.sh` | fcitx5-rime + 快速倉頡 |
 | **鍵盤** | `setup-macos-input.sh` | 鍵盤/觸控板 macOS 行為 |
-| **快捷鍵** | `setup-keybindings.sh` | 截圖、錄影、OCR、剪貼簿快捷鍵 |
-| **快捷鍵** | `setup-foot.sh` | foot 終端機貼上/複製快捷鍵 |
+| **快捷鍵** | `setup-keybindings.sh` | 剪貼簿管理員快捷鍵 |
 | **容器工具** | `setup-distrobox.sh` | Distrobox + DistroShelf + `de` alias |
-| **修復工具** | `fix-chrome-keyring.sh` | Chrome keyring 密碼彈窗修復 |
 | **修復工具** | `fix-spotify-scale.sh` | Spotify 1080p 縮放修復 |
-| **相容包裝** | `setup-rime-scj.sh` | [舊版] 字體 + 輸入法組合（已拆分） |
 
 > v3 專屬腳本 `setup-keyboard-swap.sh` 與 `setup-gaming.sh` 已在 v4 移除（Hyprland 改用 Lua 設定後不再適用），保留在 `v3` branch。
 
 ## 快速開始
 
 ```bash
-# 互動選單（預設）
+# 🌟 安裝精靈（推薦）— 互動式 checkbox 選單,勾選要安裝的項目
+./install-wizard.sh
+
+# 非互動:直接安裝指定編號
+./install-wizard.sh 1 3 4
+
+# 一鍵安裝全部
+./install-wizard.sh all
+
+# 互動選單（含還原/狀態檢查）
 ./setup-all.sh
 
 # 一鍵安裝所有
@@ -51,68 +56,64 @@
 ./setup-fonts.sh -s     # 檢查狀態
 ```
 
+### install-wizard.sh — 安裝精靈（懶人包）
+
+互動式 TUI 精靈,適合不熟悉命令列的中文用戶。流程:
+
+1. 先問**裝置類型**（筆電/桌面）,只顯示適用的選項
+2. 上下箭嘴移動游標,`Space` 切換勾選,`Enter` 進入下一步
+3. 選擇「字體」會進入字體子選單（MiSans / OPPO Sans）
+4. 選擇「輸入法」會進入輸入法子選單（快速倉頡/倉頡五代/速成/注音/拼音/粵拼/嘸蝦米）
+5. 確認後依序執行所選 setup 腳本
+
+快捷鍵: `A` 全部選 ／ `N` 取消全部 ／ `Q` 離開
+也可用參數指定:`./install-wizard.sh 2 5` 或 `./install-wizard.sh all`
+用 `./install-wizard.sh --list` 查看所有可安裝項目與編號。
+
 ## 各腳本說明
 
 ### setup-fonts.sh — 字體與顯示
 
-**目標：** 統一顯示環境，避免 HiDPI UI 過大的問題
+**目標：** 安裝中文字體，避免顯示缺字
 
-- **GTK 字體**：MiSans 10
-  - 為什麼：支援 CJK、個人覺得耐看
-- **Chromium scale**：設定為 1
-  - 為什麼：Hyprland 已經處理 HiDPI，Chromium 再縮放會造成 UI 過大
-
-### setup-looknfeel.sh — Hyprland 視覺與動畫
-
-**目標：** macOS 風格 Look & Feel（覆蓋 Omarchy 預設：彩色邊框、0 圓角、無陰影、極慢動畫）
-
-- **近乎透明嘅白色邊框**：1px hairline（macOS 冇彩色邊框，焦點靠陰影區分）
-- **視窗圓角**：10px
-- **陰影 & 毛玻璃**：柔和陰影 + 明亮 vibrancy blur（macOS 風格）
-- **快速彈簧動畫**：macSpring ~300ms（Omarchy 預設 3-4 秒太慢）
-- **無視窗暗化**：`dim_inactive` 關閉（個人偏好 — 滑鼠 focus 轉移時視窗唔變暗）
-- **邊框拖曳調整大小**：`resize_on_border = true`
-- **`-f/--force`**：強制重新套用（還原被手動修改嘅設定）
-
-**v4 實作方式**：以 `-- BEGIN/END macOS looknfeel settings` marker 區塊附加到 `~/.config/hypr/looknfeel.lua`（`hl.config` / `hl.curve` / `hl.animation` Lua API），唔會重寫 Omarchy 範本；`-u` 移除區塊即回復預設。
+- **MiSans**（預設）：小米出品,現代幾何感,支援繁中/簡中
+- **OPPO Sans**：OPPO 出品,閱讀舒適
+- `--fonts` 可只裝指定款式,例如:`./setup-fonts.sh --fonts misans`
+- 安裝字體後不會改動系統 GTK 預設字體（Omarchy 以自訂字體作系統預設）
+- **Chromium scale**：設定為 1,避免 HiDPI 下 Chromium 再縮放造成 UI 過大
 
 ### setup-input.sh — 輸入法
 
 **目標：** 在 Wayland 環境下使用順手的中文輸入法
 
 - **fcitx5 + rime**
-  - 為什麼：Wayland 原生支援，rime 詞庫可同步、彈性高
-- **快速倉頡 (scj6)**
-  - 為什麼：比傳統倉頡學習成本低，重碼率低，適合日常使用
-- **啟動時預設英文模式**
-  - 為什麼：多數時候在打程式或英文，預設英文減少切換次數
-- **F4 切換輸入法方案**（scj6 ↔ 倉頡五代）
-- **右 Shift 切換中英文**
-- **自動部署**：執行後會自動重啟 fcitx5 並等待部署完成（最長 10 秒）
+  - 為何：Wayland 原生支援，rime 詞庫可同步、彈性高
+- **多種輸入方案（可選）**
+  - 快速倉頡 (scj6)、倉頡五代 (cangjie5)、速成 (quick5)、注音 (bopomofo)、朙月拼音 (luna_pinyin)、粵拼 (jyutping)、嘸蝦米 (boshiamy)
+  - 用 `--schemas` 指定，例如 `./setup-input.sh --schemas scj6,bopomofo`（不傳則裝預設快速倉頡）
+- **快速倉頡** 支援三代＋五代碼，啟動預設英文模式
+- **F4 切換輸入法方案**、**右 Shift 切換中英文**
+- **自動部署**：執行後自動重啟 fcitx5 並等待部署完成
 
 **v4 注意事項**：
 
-- fcitx5 由 systemd user service `omarchy-fcitx5.service` 監管，重啟一律透過 `systemctl --user restart`（不再 `killall` 手動啟動）
-- IM 環境變數（`QT_IM_MODULE` 等）已是 Omarchy v4 預設，腳本無需設定
-- 腳本會檢查並修復 fcitx5 `profile`（v4 升級後 profile 曾損毀導致無法切換中文）
-- 切換輸入法主要 trigger：`Ctrl+Space`（注意 `Super+Space` 在 v4 被 Omarchy menu 佔用）
+- fcitx5 由 systemd user service `omarchy-fcitx5.service` 監管，重啟一律透過 `systemctl --user restart`
+- IM 環境變數已是 Omarchy v4 預設，腳本無需設定
+- 腳本會檢查並修復 fcitx5 `profile`
+- 切換 trigger：`Ctrl+Space`
 
 **直接寫入 fcitx5 profile 設定檔**：不透過 GUI 精靈，避免卡住 script
 
-### setup-macos-input.sh — 輸入體驗
+### setup-keyboard.sh / setup-macos-touchpad.sh — 輸入體驗
 
 **目標：** 把 macOS 的鍵盤/觸控板操作手感移植到 Hyprland
 
-| 設定 | 值 | 為什麼 |
-| ------ | ----- | -------- |
-| kb_options | `compose:caps` | 還原 v3 值——v4 預設加咗 `shift:both_capslock_cancel`，會令 rime「單獨撳右 Shift 切中英文」失效 |
-| repeat_rate | 60 | Arch 預設 25 太慢，macOS 約 60 |
-| repeat_delay | 200ms | 比預設 660ms 短，更快開始重複 |
-| natural_scroll | true | macOS muscle memory |
-| tap_to_click | true | macOS trackpad 習慣 |
-| scroll_factor | 0.7 | 滾輪速度更快 |
+| 腳本 | 設定 | 裝置 |
+| ------ | ----- | ------ |
+| `setup-keyboard.sh` | kb_options `compose:caps`、repeat_rate 60、repeat_delay 200、numlock | 兩者 |
+| `setup-macos-touchpad.sh` | natural_scroll、tap_to_click、clickfinger、scroll_factor | 筆電 |
 
-**v4 實作方式**：以 marker 區塊附加到 `~/.config/hypr/input.lua`（`hl.config({ input = ... })`）；terminal 捲動規則 v4 預設已含（Alacritty/kitty/foot 1.5、ghostty 0.2），無需重複。
+説明：v4 預設 `kb_options` 有 `shift:both_capslock_cancel` 會干擾 rime 右 Shift 切中英文，故還原成 `compose:caps`。
 
 ### setup-distrobox.sh — 容器環境
 
@@ -125,41 +126,18 @@
 - **`de` alias**
   - 為什麼：`de ubuntu` 比 `distrobox enter ubuntu` 少打很多字
 
-### setup-keybindings.sh — 快捷鍵設定
+### setup-keybindings.sh — 剪貼簿快捷鍵
 
-**目標：** 截圖、螢幕錄影、OCR、剪貼簿的自訂快捷鍵
+**目標：** 剪貼簿管理員的自訂快捷鍵
 
 | 快捷鍵 | 功能 |
 | -------- | ------ |
-| `Alt+Shift+Q` | 區域截圖 |
-| `Alt+Shift+E` | 視窗截圖 |
-| `Alt+Shift+F` | 全螢幕截圖 |
-| `Alt+Shift+R` | 螢幕錄影 |
-| `Alt+Shift+Ctrl+R` | 螢幕錄影（含攝影機） |
-| `Alt+Shift+A` | 顏色選擇器 |
-| `Alt+Shift+O` | OCR 文字辨識（中英混合） |
 | `Ctrl+\`` | 開啟剪貼簿管理員 |
 
 **v4 實作方式**：以 marker 區塊附加到 `~/.config/hypr/bindings.lua`（`o.bind()` Lua API）。
 
 - **剪貼簿管理員**：Ctrl+\` 開啟 Omarchy v4 內建剪貼簿（`omarchy-shell shell toggle omarchy.clipboard`），另有預設快捷鍵 `Super+Ctrl+V`。v3 的 walker + elephant 自動貼上組合已淘汰
-- **OCR**：使用 `omarchy-capture-text`（v3 的 `-extraction` 後綴指令已改名），以 `OMARCHY_OCR_LANGS=eng+chi_tra` 支援中英混合
-
-### setup-foot.sh — foot 終端機快捷鍵
-
-**目標：** 設定 foot 終端機的貼上/複製快捷鍵（foot 預設的 `Ctrl+Shift+V` 會被自訂 `clipboard-paste` 取代，需要一併保留）
-
-- **貼上**：`Shift+Insert` + `Ctrl+Shift+V`
-- **複製**：`Control+Insert`
-- 修改 `~/.config/foot/foot.ini` 的 `[key-bindings]` section，開新視窗生效
-
-### fix-chrome-keyring.sh — Chrome Keyring 修復
-
-**目標：** 解決 Chrome/Chromium 每次啟動都詢問 keyring 密碼的問題
-
-- 建立未加密的預設 keyring
-- 移除多餘的 keyring 檔案
-- 需要重新登入才能生效
+- 截圖/錄影/OCR/取色快捷鍵已於 2026-09 移除 — 由自製 OmaSwiss plugin（`glasschan.oma-swiss`）嘅 Quick capture 取代
 
 ## 支援的作業系統
 
@@ -173,19 +151,18 @@
 .
 ├── lib/
 │   ├── common.sh                    # 共用函式庫（顏色、紀錄函數、套件管理等）
+│   ├── discovery.sh                 # 腳本探索邏輯（setup-all 與 wizard 共用）
 │   └── AGENTS.md                    # DOX 子文件：lib 契約
 ├── AGENTS.md                        # DOX 根文件：專案契約與索引
+├── install-wizard.sh                # 安裝精靈（互動 checkbox 選單，懶人包）
 ├── setup-all.sh                     # 主程式，自動探索所有腳本 + 互動選單
 ├── setup-fonts.sh                   # 字體設定
 ├── setup-input.sh                   # 輸入法設定
 ├── setup-macos-input.sh             # 鍵盤/觸控板設定
-├── setup-keybindings.sh             # 截圖/錄影/OCR/剪貼簿快捷鍵
-├── setup-foot.sh                    # foot 終端機貼上/複製快捷鍵
+├── setup-keybindings.sh             # 剪貼簿快捷鍵
 ├── setup-distrobox.sh               # Distrobox 容器工具
-├── fix-chrome-keyring.sh            # Chrome keyring 密碼彈窗修復
 ├── fix-spotify-scale.sh             # Spotify 1080p 縮放修復
-├── test-idempotency.sh              # 冪等性測試工具
-└── setup-rime-scj.sh                # [舊版] 相容包裝
+└── test-idempotency.sh              # 冪等性測試工具
 ```
 
 ## 開發者說明

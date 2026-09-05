@@ -4,6 +4,7 @@
 # Fix Spotify scaling too large on 1080p displays (Chromium-based, not affected by GDK_SCALE)
 # Category: 修復工具
 # Description: Fix Spotify scaling on 1080p displays
+# Device: both
 
 SCRIPT_NAME="$(basename "$0")"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

@@ -20,46 +20,66 @@ TOTAL_TESTS=0
 PASSED=0
 FAILED=0
 
+# 對多個設定檔取快照 (每行 "md5  檔案";唔存在嘅檔案記 MISSING)
+snapshot_configs() {
+	local f
+	for f in "$@"; do
+		if [[ -f "$f" ]]; then
+			md5sum "$f"
+		else
+			echo "MISSING  $f"
+		fi
+	done
+}
+
 # 測試單一腳本的函數
+# 用法: test_script <script> <config> [<config>...] [-- <傳畀腳本嘅參數>...]
 test_script() {
 	local script="$1"
-	local config_file="$2"
-	local backup_file="${config_file}.bak.idempotency_test"
+	shift
+	local config_files=() script_args=() seen_args=false arg
+	for arg in "$@"; do
+		if [[ "$arg" == "--" ]]; then
+			seen_args=true
+		elif $seen_args; then
+			script_args+=("$arg")
+		else
+			config_files+=("$arg")
+		fi
+	done
 
 	# 如果設定檔不存在，跳過備份
-	if [[ -f "$config_file" ]]; then
-		cp "$config_file" "$backup_file"
-	fi
+	local f
+	for f in "${config_files[@]}"; do
+		if [[ -f "$f" ]]; then
+			cp "$f" "$f.bak.idempotency_test"
+		fi
+	done
 
 	TOTAL_TESTS=$((TOTAL_TESTS + 1))
 
-	header "測試 $script 冪等性"
+	header "測試 $script 冪等性${script_args[*]:+ (args: ${script_args[*]})}"
 
 	# 第一次執行
 	info "[1/3] 第一次執行..."
-	"./$script" -i </dev/null 2>&1 | sed 's/^/  /'
+	"./$script" -i ${script_args[@]+"${script_args[@]}"} </dev/null 2>&1 | sed 's/^/  /'
 
 	# 記錄第一次後的狀態
-	if [[ -f "$config_file" ]]; then
-		local checksum1=$(md5sum "$config_file" 2>/dev/null)
-		detail "Checksum 1: $checksum1"
-	else
-		local checksum1="new_file"
-		detail "設定檔為新建立"
-	fi
+	local detail1 checksum1
+	detail1=$(snapshot_configs "${config_files[@]}")
+	checksum1=$(printf '%s\n' "$detail1" | md5sum | cut -d' ' -f1)
+	detail "Checksum 1: $checksum1"
 
 	# 第二次執行
 	echo ""
 	info "[2/3] 第二次執行..."
-	"./$script" -i </dev/null 2>&1 | sed 's/^/  /'
+	"./$script" -i ${script_args[@]+"${script_args[@]}"} </dev/null 2>&1 | sed 's/^/  /'
 
 	# 記錄第二次後的狀態
-	if [[ -f "$config_file" ]]; then
-		local checksum2=$(md5sum "$config_file" 2>/dev/null)
-		detail "Checksum 2: $checksum2"
-	else
-		local checksum2="new_file"
-	fi
+	local detail2 checksum2
+	detail2=$(snapshot_configs "${config_files[@]}")
+	checksum2=$(printf '%s\n' "$detail2" | md5sum | cut -d' ' -f1)
+	detail "Checksum 2: $checksum2"
 
 	# 比對
 	echo ""
@@ -67,24 +87,31 @@ test_script() {
 	if [[ "$checksum1" == "$checksum2" ]]; then
 		PASSED=$((PASSED + 1))
 		echo -e "${GREEN}✓ 通過 - 兩次執行結果完全相同${NC}"
-		result="PASS"
 	else
 		FAILED=$((FAILED + 1))
 		echo -e "${RED}✗ 失敗 - 兩次執行結果不同！${NC}"
-		detail "Checksum 1: $checksum1"
-		detail "Checksum 2: $checksum2"
-		detail "設定檔差異："
-		diff -u <(echo "$checksum1") <(echo "$checksum2") || true
-		result="FAIL"
+		detail "第一次後狀態："
+		echo "$detail1" | sed 's/^/  /'
+		detail "第二次後狀態："
+		echo "$detail2" | sed 's/^/  /'
 	fi
 
-	# 恢復備份
-	if [[ -f "$backup_file" ]]; then
-		mv "$backup_file" "$config_file"
-	elif [[ -f "$config_file" ]]; then
+	# 恢復：測試期間新建立嘅設定檔用 -u 移除，原有嘅由備份還原
+	local created=false
+	for f in "${config_files[@]}"; do
+		if [[ -f "$f" && ! -f "$f.bak.idempotency_test" ]]; then
+			created=true
+		fi
+	done
+	if $created; then
 		# 如果是測試時建立的，嘗試用 -u 移除
 		"./$script" -u </dev/null 2>&1 | sed 's/^/  /'
 	fi
+	for f in "${config_files[@]}"; do
+		if [[ -f "$f.bak.idempotency_test" ]]; then
+			mv "$f.bak.idempotency_test" "$f"
+		fi
+	done
 
 	echo ""
 }
@@ -99,7 +126,7 @@ Usage: $0 [SCRIPT_NAME]
 
 Examples:
   $0 setup-keybindings.sh    # 只測試快捷鍵腳本
-  $0                           # 測試所有腳本
+  $0                         # 測試所有腳本
 EOF
 }
 
@@ -120,28 +147,25 @@ main() {
 			test_script "setup-keybindings.sh" "$HOME/.config/hypr/bindings.lua"
 			;;
 		setup-fonts.sh)
-			test_script "setup-fonts.sh" "$HOME/.config/chromium-flags.conf"
+			test_script "setup-fonts.sh" \
+				"$HOME/.config/chromium-flags.conf" \
+				"$HOME/.config/fontconfig/fonts.conf" \
+				-- --gui-font opposans
 			;;
 		setup-distrobox.sh)
 			test_script "setup-distrobox.sh" "$HOME/.bashrc"
 			;;
-		setup-foot.sh)
-			test_script "setup-foot.sh" "$HOME/.config/foot/foot.ini"
+		setup-keyboard.sh)
+			test_script "setup-keyboard.sh" "$HOME/.config/hypr/input.lua"
 			;;
-		setup-macos-input.sh)
-			test_script "setup-macos-input.sh" "$HOME/.config/hypr/input.lua"
+		setup-macos-touchpad.sh)
+			test_script "setup-macos-touchpad.sh" "$HOME/.config/hypr/input.lua"
 			;;
 		setup-input.sh)
 			test_script "setup-input.sh" "$HOME/.local/share/fcitx5/rime/scj6.custom.yaml"
 			;;
-		setup-looknfeel.sh)
-			test_script "setup-looknfeel.sh" "$HOME/.config/hypr/looknfeel.lua"
-			;;
 		fix-spotify-scale.sh)
 			test_script "fix-spotify-scale.sh" "$HOME/.config/spotify-flags.conf"
-			;;
-		fix-chrome-keyring.sh)
-			test_script "fix-chrome-keyring.sh" "$HOME/.local/share/keyrings/Default_keyring.keyring"
 			;;
 		*)
 			error "未知腳本: $1"
@@ -149,16 +173,20 @@ main() {
 		esac
 	else
 		# 測試所有腳本
-		for script in setup-fonts.sh setup-input.sh setup-macos-input.sh setup-keybindings.sh setup-distrobox.sh setup-looknfeel.sh fix-spotify-scale.sh fix-chrome-keyring.sh; do
+		for script in setup-fonts.sh setup-input.sh setup-keyboard.sh setup-macos-touchpad.sh setup-keybindings.sh setup-distrobox.sh fix-spotify-scale.sh; do
 			case "$script" in
 			setup-keybindings.sh) test_script "$script" "$HOME/.config/hypr/bindings.lua" ;;
-			setup-fonts.sh) test_script "$script" "$HOME/.config/chromium-flags.conf" ;;
+			setup-fonts.sh)
+				test_script "$script" \
+					"$HOME/.config/chromium-flags.conf" \
+					"$HOME/.config/fontconfig/fonts.conf" \
+					-- --gui-font opposans
+				;;
 			setup-distrobox.sh) test_script "$script" "$HOME/.bashrc" ;;
-			setup-macos-input.sh) test_script "$script" "$HOME/.config/hypr/input.lua" ;;
+			setup-keyboard.sh) test_script "$script" "$HOME/.config/hypr/input.lua" ;;
+			setup-macos-touchpad.sh) test_script "$script" "$HOME/.config/hypr/input.lua" ;;
 			setup-input.sh) test_script "$script" "$HOME/.local/share/fcitx5/rime/scj6.custom.yaml" ;;
-			setup-looknfeel.sh) test_script "$script" "$HOME/.config/hypr/looknfeel.lua" ;;
 			fix-spotify-scale.sh) test_script "$script" "$HOME/.config/spotify-flags.conf" ;;
-			fix-chrome-keyring.sh) test_script "$script" "$HOME/.local/share/keyrings/Default_keyring.keyring" ;;
 			esac
 		done
 	fi

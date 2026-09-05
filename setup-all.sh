@@ -10,98 +10,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Load shared library
 source "$SCRIPT_DIR/lib/common.sh"
-
-# ========================================
-# Script Discovery
-# ========================================
-
-# Extract metadata from a script
-get_script_metadata() {
-    local script="$1"
-    local key="$2"
-    grep -E "^# $key:" "$SCRIPT_DIR/$script" | sed -E "s/^# $key:[[:space:]]*(.*)$/\1/" | head -1
-}
-
-# Get script category
-get_script_category() {
-    local script="$1"
-    local category
-    category=$(get_script_metadata "$script" "Category")
-    echo "${category:-Other}"
-}
-
-# Get script description
-get_script_description() {
-    local script="$1"
-    local desc
-    desc=$(get_script_metadata "$script" "Description")
-    if [[ -z "$desc" ]]; then
-        # Fallback to second line comment
-        desc=$(sed -n '2p' "$SCRIPT_DIR/$script" | sed -E 's/^# //')
-    fi
-    echo "${desc:-$script}"
-}
-
-# Discover all setup scripts (exclude setup-all.sh itself and setup-rime-scj.sh)
-discover_scripts() {
-    local scripts=()
-    for script in "$SCRIPT_DIR"/setup-*.sh; do
-        local script_base=$(basename "$script")
-        [[ "$script_base" == "setup-all.sh" ]] && continue
-        [[ "$script_base" == "setup-rime-scj.sh" ]] && continue
-        scripts+=("$script_base")
-    done
-    # Add standalone scripts
-    for script in "$SCRIPT_DIR"/fix-chrome-keyring.sh "$SCRIPT_DIR"/fix-spotify-scale.sh; do
-        [[ -f "$script" ]] && scripts+=("$(basename "$script")")
-    done
-    echo "${scripts[@]}"
-}
-
-# Group scripts by category
-group_scripts_by_category() {
-    local scripts=($(discover_scripts))
-    local categories=()
-
-    # First pass: get all unique categories
-    for script in "${scripts[@]}"; do
-        local category=$(get_script_category "$script")
-        if ! [[ " ${categories[@]} " =~ " $category " ]]; then
-            categories+=("$category")
-        fi
-    done
-
-    # Sort categories by logical order (most frequently used first)
-    local sorted=()
-    for cat in "系統設定" "輸入法" "鍵盤" "快捷鍵" "遊戲相容" "容器工具" "修復工具" "Other"; do
-        if [[ " ${categories[@]} " =~ " $cat " ]]; then
-            sorted+=("$cat")
-        fi
-    done
-    # Add any remaining categories
-    for cat in "${categories[@]}"; do
-        if ! [[ " ${sorted[@]} " =~ " $cat " ]]; then
-            sorted+=("$cat")
-        fi
-    done
-
-    echo "${sorted[@]}"
-}
-
-# Get scripts in a category
-get_scripts_in_category() {
-    local category="$1"
-    local scripts=($(discover_scripts))
-    local result=()
-
-    for script in "${scripts[@]}"; do
-        local script_cat=$(get_script_category "$script")
-        if [[ "$script_cat" == "$category" ]]; then
-            result+=("$script")
-        fi
-    done
-    echo "${result[@]}"
-}
+# Script discovery (extracted to lib so setup-all and install-wizard share it)
+source "$SCRIPT_DIR/lib/discovery.sh"
 
 # ========================================
 # Menu Generation
@@ -202,6 +112,11 @@ install_all() {
     local first=true
 
     for script in "${scripts[@]}"; do
+        # Device 分流:唔適用本機嘅 script 跳過 (wizard 問用戶,呢度自動偵測)
+        if ! script_applies_here "$script"; then
+            info "略過 $script (Device 唔適用本機: $(current_device))"
+            continue
+        fi
         $first || echo ""
         first=false
         run_script "$script" "-i"
