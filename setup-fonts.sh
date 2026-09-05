@@ -187,7 +187,19 @@ check_chromium_scale() {
 # 預設中文 GUI 字體 (GTK 三 + Electron fontconfig)
 # ========================================
 
-# 寫入/更新 fontconfig sans-serif 覆蓋 (prepend_first 蓋過 Omarchy assign)
+# 移除 fontconfig marker 區塊 (若存在)
+remove_fontconfig_block() {
+    if [[ -f "$FONTCONF" ]] && grep -qF -- "$FC_MARKER_BEGIN" "$FONTCONF"; then
+        local begin_line end_line
+        begin_line=$(grep -n -F -- "$FC_MARKER_BEGIN" "$FONTCONF" | cut -d: -f1 | head -1)
+        end_line=$(grep -n -F -- "$FC_MARKER_END" "$FONTCONF" | cut -d: -f1 | head -1)
+        [[ -n "$begin_line" && -n "$end_line" ]] && sed -i "${begin_line},${end_line}d" "$FONTCONF"
+    fi
+}
+
+# 寫入 fontconfig sans-serif 覆蓋 (prepend_first 蓋過 Omarchy assign)
+# 每次成個 marker 區塊刪除再重插 — 唔可以 sed 逐字串替換,
+# 否則區塊內嘅 <string>sans-serif</string> (test target) 都會被換走,規則會壞
 setup_fontconfig_sans() {
     local family="$1"
 
@@ -200,16 +212,13 @@ setup_fontconfig_sans() {
 <fontconfig>
 </fontconfig>
 EOF
+    else
+        create_backup "$FONTCONF"
     fi
 
-    if grep -qF -- "$FC_MARKER_BEGIN" "$FONTCONF"; then
-        # 已存在: 更新 marker block 內嘅 family
-        sed -i "/$FC_MARKER_BEGIN/,/$FC_MARKER_END/ s|<string>[^<]*</string>|<string>$family</string>|" "$FONTCONF"
-    else
-        # 插入到 </fontconfig> 之前
-        create_backup "$FONTCONF"
-        sed -i "s|</fontconfig>|$FC_MARKER_BEGIN\n  <match target=\"pattern\">\n    <test name=\"family\" qual=\"any\">\n      <string>sans-serif</string>\n    </test>\n    <edit name=\"family\" mode=\"prepend_first\" binding=\"strong\">\n      <string>$family</string>\n    </edit>\n  </match>\n$FC_MARKER_END\n</fontconfig>|" "$FONTCONF"
-    fi
+    remove_fontconfig_block
+
+    sed -i "s|</fontconfig>|$FC_MARKER_BEGIN\n  <match target=\"pattern\">\n    <test name=\"family\" qual=\"any\">\n      <string>sans-serif</string>\n    </test>\n    <edit name=\"family\" mode=\"prepend_first\" binding=\"strong\">\n      <string>$family</string>\n    </edit>\n  </match>\n$FC_MARKER_END\n</fontconfig>|" "$FONTCONF"
     info "fontconfig: sans-serif → $family (覆蓋 Omarchy assign)"
 }
 
@@ -246,13 +255,8 @@ reset_fonts() {
     info "GTK 字體已還原為系統預設"
 
     if [[ -f "$FONTCONF" ]] && grep -qF -- "$FC_MARKER_BEGIN" "$FONTCONF"; then
-        local begin_line end_line
-        begin_line=$(grep -n -F -- "$FC_MARKER_BEGIN" "$FONTCONF" | cut -d: -f1 | head -1)
-        end_line=$(grep -n -F -- "$FC_MARKER_END" "$FONTCONF" | cut -d: -f1 | head -1)
-        if [[ -n "$begin_line" && -n "$end_line" ]]; then
-            create_backup "$FONTCONF"
-            sed -i "${begin_line},${end_line}d" "$FONTCONF"
-        fi
+        create_backup "$FONTCONF"
+        remove_fontconfig_block
         info "已移除 fontconfig sans-serif 設定"
     fi
 }
@@ -371,23 +375,33 @@ usage() {
 }
 
 # 主程式
+# 參數可組合 (例: --fonts misans --gui-font opposans),逐個解析後一次過 install
 main() {
-    case "${1:-}" in
-        -u|--uninstall) uninstall ;;
-        -d|--download) install_selected_fonts ;;
-        -s|--status) show_status ;;
-        -h|--help) usage ;;
-        --fonts)
-            shift; parse_font_arg "${1:-}"; install
-            ;;
-        --gui-font)
-            shift; parse_gui_font_arg "${1:-}"
-            [[ -n "$GUI_FONT" ]] && FONTS+=("$GUI_FONT")
-            install
-            ;;
-        -i|--install|"") install ;;
-        *) usage; exit 1 ;;
-    esac
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -u|--uninstall) uninstall; return 0 ;;
+            -d|--download) install_selected_fonts; return 0 ;;
+            -s|--status) show_status; return 0 ;;
+            -h|--help) usage; return 0 ;;
+            --fonts)
+                if [[ -z "${2:-}" ]]; then
+                    error "--fonts 需要參數 (misans, opposans)"
+                fi
+                parse_font_arg "$2"; shift 2
+                ;;
+            --gui-font)
+                if [[ -z "${2:-}" ]]; then
+                    error "--gui-font 需要參數 (misans|opposans)"
+                fi
+                parse_gui_font_arg "$2"
+                [[ -n "$GUI_FONT" ]] && FONTS+=("$GUI_FONT")
+                shift 2
+                ;;
+            -i|--install|"") shift ;;
+            *) usage; exit 1 ;;
+        esac
+    done
+    install
 }
 
 main "$@"
