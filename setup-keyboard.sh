@@ -50,15 +50,22 @@ strip_block_range() {
 }
 
 install() {
+    # -f/--force: 跳過存在性檢查,強制重新套用(重寫區塊)
+    local force=false
+    [[ "$1" == "-f" || "$1" == "--force" ]] && force=true
+
     info "開始設定 macOS 風格鍵盤行為..."
 
-    if check_installed; then
+    if ! $force && check_installed; then
         info "鍵盤設定已存在，跳過（用 -f 強制重新套用）"
         return 0
     fi
 
     mkdir -p "$(dirname "$INPUT_LUA")"
     create_backup "$INPUT_LUA"
+
+    # 先移除自己嘅舊區塊(冇就係 no-op),確保重套用時唔會疊加
+    strip_block_range "$BEGIN_MARKER" "$END_MARKER"
 
     # 遷移:移除舊 setup-macos-input.sh 合併區塊（鍵盤部分已由此 script 承接）
     if grep -qF -- "$OLD_BEGIN_MARKER" "$INPUT_LUA"; then
@@ -105,7 +112,12 @@ uninstall() {
         return 0
     fi
     strip_block_range "$BEGIN_MARKER" "$END_MARKER"
+    # 一併清走舊版 setup-macos-input.sh 殘留區塊(升級後直接 -u 唔會留孤兒)
+    strip_block_range "$OLD_BEGIN_MARKER" "$OLD_END_MARKER"
     info "已移除鍵盤設定區塊"
+    if command -v hyprctl >/dev/null 2>&1; then
+        hyprctl reload &>/dev/null || warn "無法重新載入 Hyprland，請重新登入"
+    fi
 }
 
 show_status() {
@@ -124,6 +136,7 @@ usage() {
     echo ""
     echo "Options:"
     echo "  -i, --install     安裝/設定 macOS 風格鍵盤 (預設)"
+    echo "  -f, --force       強制重新套用（跳過存在檢查，重寫區塊）"
     echo "  -u, --uninstall   還原鍵盤設定"
     echo "  -s, --status      顯示目前狀態"
     echo "  -h, --help        顯示此說明"
@@ -134,7 +147,13 @@ main() {
         -u|--uninstall) uninstall ;;
         -s|--status) show_status ;;
         -h|--help) usage ;;
-        *) install ;;
+        -f|--force) install -f ;;
+        -i|--install|"") install ;;
+        *)
+            error "未知選項: $1"
+            usage
+            exit 1
+            ;;
     esac
 }
 

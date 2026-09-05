@@ -42,15 +42,22 @@ strip_block_range() {
 }
 
 install() {
+    # -f/--force: 跳過存在性檢查,強制重新套用(重寫區塊)
+    local force=false
+    [[ "$1" == "-f" || "$1" == "--force" ]] && force=true
+
     info "設定 macOS 風格觸控板..."
 
-    if check_installed; then
+    if ! $force && check_installed; then
         info "觸控板設定已存在，跳過（用 -f 強制重新套用）"
         return 0
     fi
 
     mkdir -p "$(dirname "$INPUT_LUA")"
     create_backup "$INPUT_LUA"
+
+    # 先移除自己嘅舊區塊(冇就係 no-op),確保重套用時唔會疊加
+    strip_block_range "$BEGIN_MARKER" "$END_MARKER"
 
     cat >>"$INPUT_LUA" <<'EOF'
 
@@ -89,6 +96,9 @@ uninstall() {
     fi
     strip_block_range "$BEGIN_MARKER" "$END_MARKER"
     info "已還原觸控板設定"
+    if command -v hyprctl >/dev/null 2>&1; then
+        hyprctl reload &>/dev/null || warn "無法重新載入 Hyprland，請重新登入"
+    fi
 }
 
 show_status() {
@@ -107,6 +117,7 @@ usage() {
     echo ""
     echo "Options:"
     echo "  -i, --install     安裝/設定 macOS 觸控板 (預設)"
+    echo "  -f, --force       強制重新套用（跳過存在檢查，重寫區塊）"
     echo "  -u, --uninstall   還原觸控板設定"
     echo "  -s, --status      顯示目前狀態"
     echo "  -h, --help        顯示此說明"
@@ -117,7 +128,13 @@ main() {
         -u|--uninstall) uninstall ;;
         -s|--status) show_status ;;
         -h|--help) usage ;;
-        *) install ;;
+        -f|--force) install -f ;;
+        -i|--install|"") install ;;
+        *)
+            error "未知選項: $1"
+            usage
+            exit 1
+            ;;
     esac
 }
 
