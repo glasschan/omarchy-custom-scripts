@@ -164,7 +164,8 @@ There is no formal test suite. Test by:
 
 - User configs go in `~/.config/hypr/*.lua` — auto-loaded after Omarchy defaults: `monitors.lua`, `input.lua`, `bindings.lua`, `looknfeel.lua`, `autostart.lua` (plus `hyprland.lua` itself for anything else)
 - Lua API: `hl.config({...})` for variables, `o.bind("KEYS", "desc", "cmd")` for bindings, `hl.unbind`, `o.window(class, rules)` for window rules, `hl.env`, `hl.curve`/`hl.animation` for animations
-- Our scripts append `-- BEGIN/END ... (setup-X.sh)` marker blocks; uninstall truncates from the BEGIN line to EOF (blocks are always appended at end of file)
+- Our scripts append `-- BEGIN/END ... (setup-X.sh)` marker blocks; `-u`/force-rewrite strips exactly that block (`strip_block_range`) — multiple blocks may coexist in one file, never truncate from BEGIN to EOF
+- When updating a block's content, always strip the whole block and re-append it — never sed-patch values inside an existing block (substring replaces hit the wrong node: the fonts.conf `sans-serif` `<string>` got overwritten by a family-name sed)
 - Validate after any Lua change: `hyprctl reload && hyprctl configerrors` (empty output = clean); check bindings with `omarchy menu keybindings --print`
 - Never edit `/usr/share/omarchy/` or `~/.local/share/omarchy/` (Omarchy defaults; reading is fine)
 
@@ -176,7 +177,7 @@ There is no formal test suite. Test by:
 - IM env vars (`QT_IM_MODULE` etc.) are Omarchy v4 defaults — scripts don't set them
 - The script checks/repairs `~/.config/fcitx5/profile` (post-v4-upgrade corruption left rime unreachable)
 - Auto-deploy: restart the service, wait up to 10s for `rime/build/`
-- **kb_options must stay `compose:caps`** (v3 value): v4's default adds `shift:both_capslock_cancel`, which breaks rime's alone-Right-Shift CN/EN toggle (XKB-level interference). `setup-macos-input.sh` overrides this in its `input.lua` marker block — don't drop that line
+- **kb_options must stay `compose:caps`** (v3 value): v4's default adds `shift:both_capslock_cancel`, which breaks rime's alone-Right-Shift CN/EN toggle (XKB-level interference). `setup-keyboard.sh` overrides this in its `input.lua` marker block — don't drop that line
 
 ## Adding New Features
 

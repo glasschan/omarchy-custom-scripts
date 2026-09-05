@@ -167,7 +167,6 @@ render_main() {
     echo "  [↑↓] 移動  [Space] 切換  [Enter] 下一步  [A] 全選  [N] 取消  [Q] 離開"
     echo ""
 
-    local -A cat_seen=()
     local n=${#ITEMS[@]}
     local idx=0 last_cat=""
     for ((idx=0; idx<n; idx++)); do
@@ -220,21 +219,6 @@ ask_device() {
         1|l|L|"") DEVICE="laptop" ;;
         *) DEVICE="desktop" ;;
     esac
-}
-
-# 進入子選單(若需要)
-ensure_submenus() {
-    local need_font=false need_input=false
-    local i s
-    for i in "${SELECTED[@]}"; do
-        s="${ITEMS[$i]}"
-        case "$s" in
-            setup-fonts.sh) need_font=true ;;
-            setup-input.sh) need_input=true ;;
-        esac
-    done
-    [[ "$need_font" && ${#FONT_SEL[@]} -eq 0 ]] && pick_menu "選擇要安裝的字體" FONT_SEL "${FONT_CHOICES[@]}"
-    [[ "$need_input" && ${#SCHEMA_SEL[@]} -eq 0 ]] && pick_menu "選擇輸入法方案" SCHEMA_SEL "${SCHEMA_CHOICES[@]}"
 }
 
 install_selected() {
@@ -308,7 +292,7 @@ interactive_wizard() {
             UP)   (( cursor > 0 )) && ((cursor--)) ;;
             DOWN) (( cursor < ${#ITEMS[@]}-1 )) && ((cursor++)) ;;
             " ")  toggle_sel "$cursor" ;;
-            a|A)  local -a _all=(); for ((i=0;i<${#ITEMS[@]};i++)); do _all+=("$i"); done; SELECTED=("${_all[@]}") ;;
+            a|A)  local i; local -a _all=(); for ((i=0;i<${#ITEMS[@]};i++)); do _all+=("$i"); done; SELECTED=("${_all[@]}") ;;
             n|N)  SELECTED=() ;;
             q|Q)  info "再見！"; exit 0 ;;
             "")
@@ -364,23 +348,21 @@ interactive_submenus() {
 # 非互動
 # ================================================================
 list_all() {
-    local last_cat="" idx=0
+    local last_cat="" i
     for ((i=0;i<${#ITEMS[@]};i++)); do
         local cat="${ITEM_CAT[$i]}"
         [[ "$cat" != "$last_cat" ]] && { echo ""; echo "▼ $cat"; last_cat="$cat"; }
-        ((idx++))
-        echo "  $idx. ${ITEM_DESC[$i]}"
+        echo "  $((i+1)). ${ITEM_DESC[$i]}"
     done
-    unset idx
 }
 
 select_argv() {
-    local arg
+    local arg idx
     for arg in "$@"; do
         [[ "$arg" == --* ]] && continue
         if [[ "$arg" == "all" ]]; then
-            local -a i=(); for ((i=0;i<${#ITEMS[@]};i++)); do all+=("$i"); done
-            SELECTED=("${all[@]}")
+            SELECTED=()
+            for ((idx=0; idx<${#ITEMS[@]}; idx++)); do SELECTED+=("$idx"); done
             return 0
         fi
         if [[ "$arg" =~ ^[0-9]+$ ]] && (( arg >= 1 && arg <= ${#ITEMS[@]} )); then
