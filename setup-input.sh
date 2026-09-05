@@ -371,13 +371,19 @@ redeploy_rime() {
 
     restart_fcitx5
 
+    # 等任一已啟用方案嘅 build 產物出現(唔硬編碼 scj6 — 純選其他方案時會誤報超時)
+    local probes=("${SCHEMAS[@]}")
+    [[ ${#probes[@]} -eq 0 ]] && probes=(scj6)
+
     info "等待部署完成..."
-    local count=0
-    while [[ $count -lt 10 ]]; do
-        if [[ -d "$RIME_DIR/build" ]] && [[ -f "$RIME_DIR/build/scj6.schema.yaml" ]]; then
-            info "Rime 部署完成"
-            return 0
-        fi
+    local count s
+    while (( count < 10 )); do
+        for s in "${probes[@]}"; do
+            if [[ -f "$RIME_DIR/build/$s.schema.yaml" ]]; then
+                info "Rime 部署完成 ($s)"
+                return 0
+            fi
+        done
         sleep 1
         ((count++))
     done
@@ -556,36 +562,45 @@ usage() {
 }
 
 # 主程式
+# 參數可組合 (例: --schemas scj6,quick5 --shift left),逐個解析後一次過 install
 main() {
-    case "${1:-}" in
-        -u|--uninstall)
-            uninstall
-            ;;
-        -s|--status)
-            show_status
-            ;;
-        -h|--help)
-            usage
-            ;;
-        --schemas)
-            shift
-            parse_schemas_arg "${1:-}"
-            install
-            ;;
-        --shift)
-            shift
-            parse_shift_arg "${1:-}"
-            install
-            ;;
-        -i|--install|"")
-            install
-            ;;
-        *)
-            error "未知選項: $1"
-            usage
-            exit 1
-            ;;
-    esac
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -u|--uninstall)
+                uninstall
+                return 0
+                ;;
+            -s|--status)
+                show_status
+                return 0
+                ;;
+            -h|--help)
+                usage
+                return 0
+                ;;
+            --schemas)
+                if [[ -z "${2:-}" ]]; then
+                    error "--schemas 需要參數 (scj6, cangjie5, quick5, bopomofo, luna_pinyin, jyutping, boshiamy)"
+                fi
+                parse_schemas_arg "$2"
+                shift 2
+                ;;
+            --shift)
+                if [[ -z "${2:-}" ]]; then
+                    error "--shift 需要參數 (left, right)"
+                fi
+                parse_shift_arg "$2"
+                shift 2
+                ;;
+            -i|--install|"")
+                shift
+                ;;
+            *)
+                error "未知選項: $1"
+                ;;
+        esac
+    done
+    install
 }
 
 main "$@"
