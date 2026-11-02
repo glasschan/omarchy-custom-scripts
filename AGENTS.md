@@ -35,7 +35,7 @@ Root owns: `setup-all.sh` (orchestrator + interactive menu), all `setup-*.sh` fe
 
 ## Verification
 
-- `./test-idempotency.sh` — runs a script's `-i` twice and asserts config files unchanged; accepts a script name to test just one
+- `./test-idempotency.sh` — runs a script's `-i` twice and asserts config files unchanged; accepts a script name to test just one. Script→config mapping lives in one place (`SCRIPT_CONFIG_MAP`); register a new script there with a single line and both usages pick it up; unregistered names exit non-zero
 - Manual: `./setup-all.sh -s` should correctly reflect installed state
 
 ## Core Contract
