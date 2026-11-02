@@ -100,6 +100,28 @@ create_backup() {
     fi
 }
 
+# ========================================
+# Hyprland Lua marker blocks
+# ========================================
+
+# Remove a marker block appended by a setup script (v4 Lua configs).
+# Blocks are always appended at end of file: delete from the BEGIN marker line
+# to EOF, plus the one preceding blank line, so the file returns byte-identical
+# to its pre-install content. No-op when the marker is absent.
+# Usage: strip_block <file> <begin_marker>
+strip_block() {
+    local file="$1" marker="$2"
+    local first_line
+    first_line=$(grep -n -F -- "$marker" "$file" | cut -d: -f1 | head -1)
+    [[ -z "$first_line" ]] && return 0
+
+    local cut_line=$first_line
+    if (( cut_line > 1 )) && [[ -z "$(sed -n "$((cut_line - 1))p" "$file")" ]]; then
+        cut_line=$((cut_line - 1))
+    fi
+    sed -i "${cut_line},\$d" "$file"
+}
+
 # Standard usage template (scripts can append their own examples)
 usage_template() {
     cat <<EOF
