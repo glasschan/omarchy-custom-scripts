@@ -31,12 +31,10 @@ check_dependencies() {
 
     if ! command -v omarchy-capture-screenshot &>/dev/null; then
         error "omarchy-capture-screenshot 未安裝（需要 Omarchy v4）"
-        exit 1
     fi
 
     if ! tesseract --list-langs 2>/dev/null | grep -q "chi_tra"; then
         error "tesseract-data-chi_tra 未安裝，請先安裝以使用 OCR 功能"
-        exit 1
     fi
 
     info "依賴檢查完成"
@@ -47,18 +45,7 @@ is_installed() {
     [[ -f "$BINDINGS_LUA" ]] && grep -qF -- "$BEGIN_MARKER" "$BINDINGS_LUA"
 }
 
-# 移除區塊（區塊永遠附加在檔尾：由 BEGIN 行起刪到 EOF）
-strip_block() {
-    local first_line
-    first_line=$(grep -n -F -- "$BEGIN_MARKER" "$BINDINGS_LUA" | cut -d: -f1 | head -1)
-    [[ -z "$first_line" ]] && return 0
-
-    local cut_line=$first_line
-    if (( cut_line > 1 )) && [[ -z "$(sed -n "$((cut_line - 1))p" "$BINDINGS_LUA")" ]]; then
-        cut_line=$((cut_line - 1))
-    fi
-    sed -i "${cut_line},\$d" "$BINDINGS_LUA"
-}
+# 移除區塊：共用 lib/common.sh 嘅 strip_block（檔案路徑 + marker 由參數傳入）
 
 # 新增自訂快捷鍵到 hyprland (v4 Lua)
 setup_hypr_keybindings() {
@@ -109,7 +96,7 @@ uninstall() {
     fi
 
     if is_installed; then
-        strip_block
+        strip_block "$BINDINGS_LUA" "$BEGIN_MARKER"
         info "已從 $BINDINGS_LUA 移除自訂快捷鍵"
     else
         info "沒有找到已加入的自訂快捷鍵，跳過"
@@ -190,8 +177,6 @@ main() {
             ;;
         *)
             error "未知選項: $1"
-            usage
-            exit 1
             ;;
     esac
 }

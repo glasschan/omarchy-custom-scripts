@@ -39,16 +39,14 @@ download_misans() {
     local zip_file="$temp_dir/MiSans.zip"
     
     if ! curl -L -o "$zip_file" "$MISANS_URL"; then
-        error "下載 MiSans 失敗"
         rm -rf "$temp_dir"
-        return 1
+        error "下載 MiSans 失敗"
     fi
-    
+
     info "解壓 MiSans..."
     if ! unzip -q "$zip_file" -d "$temp_dir"; then
-        error "解壓 MiSans 失敗"
         rm -rf "$temp_dir"
-        return 1
+        error "解壓 MiSans 失敗"
     fi
     
     # 尋找 MiSansVF.ttf
@@ -56,9 +54,8 @@ download_misans() {
     font_file=$(find "$temp_dir" -name "MiSansVF.ttf" -o -name "MiSans-VF.ttf" | head -1)
     
     if [[ -z "$font_file" ]]; then
-        error "找不到 MiSansVF.ttf"
         rm -rf "$temp_dir"
-        return 1
+        error "找不到 MiSansVF.ttf"
     fi
     
     mkdir -p "$FONT_DIR"
@@ -76,16 +73,14 @@ download_opposans() {
     local zip_file="$temp_dir/OPPOSans.zip"
     
     if ! curl -L -o "$zip_file" "$OPPOSANS_URL"; then
-        error "下載 OPPO Sans 失敗"
         rm -rf "$temp_dir"
-        return 1
+        error "下載 OPPO Sans 失敗"
     fi
-    
+
     info "解壓 OPPO Sans..."
     if ! unzip -q "$zip_file" -d "$temp_dir"; then
-        error "解壓 OPPO Sans 失敗"
         rm -rf "$temp_dir"
-        return 1
+        error "解壓 OPPO Sans 失敗"
     fi
     
     # 尋找 OPPO Sans 4.0.ttf
@@ -93,9 +88,8 @@ download_opposans() {
     font_file=$(find "$temp_dir" -name "OPPO Sans 4.0.ttf" -o -name "OPPOSans40.ttf" | head -1)
     
     if [[ -z "$font_file" ]]; then
-        error "找不到 OPPO Sans 4.0.ttf"
         rm -rf "$temp_dir"
-        return 1
+        error "找不到 OPPO Sans 4.0.ttf"
     fi
     
     mkdir -p "$FONT_DIR"
@@ -321,8 +315,6 @@ main() {
             ;;
         *)
             error "未知選項: $1"
-            usage
-            exit 1
             ;;
     esac
 }
