@@ -203,7 +203,7 @@ uninstall() {
 
     # 移除我們的自訂設定 (透過 marker 判斷)
     if is_installed; then
-        strip_block
+        strip_block "$LOOKNFEEL_LUA" "$BEGIN_MARKER"
         info "已移除自訂設定（looknfeel.lua 回復 Omarchy v4 範本 + 預設）"
     else
         info "沒有找到自訂 Look & Feel 設定，跳過"
