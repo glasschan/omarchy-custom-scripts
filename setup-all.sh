@@ -12,8 +12,25 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib/common.sh"
 
 # ========================================
-# Script Discovery
+# Script Registry
 # ========================================
+# Structured data, built exactly once per run in init_script_registry():
+#   ALL_SCRIPTS   — discovered scripts, discovery order (install/uninstall-all,
+#                   status, usage iterate this)
+#   CATEGORY_ORDER — unique categories in display order (menu grouping)
+#   MENU_NUMS / MENU_SCRIPTS / MENU_MODES / MENU_CATEGORIES / MENU_DESCS —
+#                   parallel arrays, one entry per menu option: all install
+#                   entries first, then all uninstall entries
+#   MENU_INSTALL_COUNT — highest install option number
+# No function re-derives the menu; they all read these arrays.
+ALL_SCRIPTS=()
+CATEGORY_ORDER=()
+MENU_NUMS=()
+MENU_SCRIPTS=()
+MENU_MODES=()
+MENU_CATEGORIES=()
+MENU_DESCS=()
+MENU_INSTALL_COUNT=0
 
 # Extract metadata from a script
 get_script_metadata() {
@@ -55,8 +72,9 @@ is_script_hidden() {
     [[ "$hidden" =~ ^[Yy]es$|^[Tt]rue$|^1$ ]]
 }
 
+# Fill ALL_SCRIPTS with every discoverable script, in discovery order
 discover_scripts() {
-    local scripts=()
+    ALL_SCRIPTS=()
     local script script_base
     for script in "$SCRIPT_DIR"/setup-*.sh "$SCRIPT_DIR"/fix-*.sh; do
         [[ -f "$script" ]] || continue
@@ -68,85 +86,83 @@ discover_scripts() {
         [[ -n "$(get_script_metadata "$script_base" "Description")" ]] || continue
         # "# Hidden: yes" keeps a script out of the menu/status
         is_script_hidden "$script_base" && continue
-        scripts+=("$script_base")
+        ALL_SCRIPTS+=("$script_base")
     done
-    echo "${scripts[@]}"
 }
 
-# Group scripts by category
+# Fill CATEGORY_ORDER with the unique categories of ALL_SCRIPTS, sorted by
+# logical order (most frequently used first), unknown categories appended
 group_scripts_by_category() {
-    local scripts=($(discover_scripts))
-    local categories=()
-
-    # First pass: get all unique categories
-    for script in "${scripts[@]}"; do
-        local category=$(get_script_category "$script")
-        if ! [[ " ${categories[@]} " =~ " $category " ]]; then
-            categories+=("$category")
+    local seen=() script category cat
+    for script in "${ALL_SCRIPTS[@]}"; do
+        category=$(get_script_category "$script")
+        if [[ " ${seen[*]} " != *" $category "* ]]; then
+            seen+=("$category")
         fi
     done
 
-    # Sort categories by logical order (most frequently used first)
-    local sorted=()
+    CATEGORY_ORDER=()
     for cat in "系統設定" "輸入法" "鍵盤" "快捷鍵" "遊戲相容" "容器工具" "修復工具" "Other"; do
-        if [[ " ${categories[@]} " =~ " $cat " ]]; then
-            sorted+=("$cat")
+        if [[ " ${seen[*]} " == *" $cat "* ]]; then
+            CATEGORY_ORDER+=("$cat")
         fi
     done
     # Add any remaining categories
-    for cat in "${categories[@]}"; do
-        if ! [[ " ${sorted[@]} " =~ " $cat " ]]; then
-            sorted+=("$cat")
+    for cat in "${seen[@]}"; do
+        if [[ " ${CATEGORY_ORDER[*]} " != *" $cat "* ]]; then
+            CATEGORY_ORDER+=("$cat")
         fi
     done
-
-    echo "${sorted[@]}"
 }
 
-# Get scripts in a category
-get_scripts_in_category() {
-    local category="$1"
-    local scripts=($(discover_scripts))
-    local result=()
-
-    for script in "${scripts[@]}"; do
-        local script_cat=$(get_script_category "$script")
-        if [[ "$script_cat" == "$category" ]]; then
-            result+=("$script")
-        fi
-    done
-    echo "${result[@]}"
-}
-
-# ========================================
-# Menu Generation
-# ========================================
-
-# Build a flat list of script options with their numbers
-# Returns each option on a separate line: "number|script|mode|category|description"
+# Fill the MENU_* parallel arrays with the numbered menu options.
+# Install entries first (category order, discovery order within a category),
+# then uninstall entries in the same order.
 build_menu_options() {
-    local categories=($(group_scripts_by_category))
-    local num=1
+    MENU_NUMS=()
+    MENU_SCRIPTS=()
+    MENU_MODES=()
+    MENU_CATEGORIES=()
+    MENU_DESCS=()
+
+    group_scripts_by_category
+
+    local num=1 category script desc
 
     # Install options
-    for category in "${categories[@]}"; do
-        local scripts=($(get_scripts_in_category "$category"))
-        for script in "${scripts[@]}"; do
-            local desc=$(get_script_description "$script")
-            echo "${num}|${script}|install|$category|$desc"
+    for category in "${CATEGORY_ORDER[@]}"; do
+        for script in "${ALL_SCRIPTS[@]}"; do
+            [[ "$(get_script_category "$script")" == "$category" ]] || continue
+            desc=$(get_script_description "$script")
+            MENU_NUMS+=("$num")
+            MENU_SCRIPTS+=("$script")
+            MENU_MODES+=("install")
+            MENU_CATEGORIES+=("$category")
+            MENU_DESCS+=("$desc")
             ((num++))
         done
     done
+    MENU_INSTALL_COUNT=$((num - 1))
 
     # Uninstall options
-    for category in "${categories[@]}"; do
-        local scripts=($(get_scripts_in_category "$category"))
-        for script in "${scripts[@]}"; do
-            local desc=$(get_script_description "$script")
-            echo "${num}|${script}|uninstall|$category|$desc"
+    for category in "${CATEGORY_ORDER[@]}"; do
+        for script in "${ALL_SCRIPTS[@]}"; do
+            [[ "$(get_script_category "$script")" == "$category" ]] || continue
+            desc=$(get_script_description "$script")
+            MENU_NUMS+=("$num")
+            MENU_SCRIPTS+=("$script")
+            MENU_MODES+=("uninstall")
+            MENU_CATEGORIES+=("$category")
+            MENU_DESCS+=("$desc")
             ((num++))
         done
     done
+}
+
+# Build the whole registry once per run; every mode reads from these arrays
+init_script_registry() {
+    discover_scripts
+    build_menu_options
 }
 
 # ========================================
@@ -157,33 +173,27 @@ show_menu() {
     header "Glass Omarchy 自訂工具箱"
     echo ""
 
-    local max_install_num=0
-
-    # Install section - group by category
-    local last_category=""
-    while IFS='|' read -r num script mode category desc; do
-        if [[ "$mode" == "install" ]]; then
-            if [[ "$last_category" != "$category" ]]; then
-                echo ""
-                echo -e "\033[1;34m▼ $category\033[0m"
-                last_category="$category"
-            fi
-            echo -e "  \033[0;32m$num\033[0m. $desc"
-            max_install_num=$num
+    local i last_category=""
+    for i in "${!MENU_MODES[@]}"; do
+        [[ "${MENU_MODES[i]}" == "install" ]] || continue
+        if [[ "$last_category" != "${MENU_CATEGORIES[i]}" ]]; then
+            echo ""
+            echo -e "\033[1;34m▼ ${MENU_CATEGORIES[i]}\033[0m"
+            last_category="${MENU_CATEGORIES[i]}"
         fi
-    done < <(build_menu_options)
+        echo -e "  \033[0;32m${MENU_NUMS[i]}\033[0m. ${MENU_DESCS[i]}"
+    done
 
     echo ""
     echo -e "\033[1;34m▼ 還原設定\033[0m"
-    while IFS='|' read -r num script mode category desc; do
-        if [[ "$mode" == "uninstall" ]]; then
-            echo -e "  \033[0;32m$num\033[0m. 還原 $desc"
-        fi
-    done < <(build_menu_options)
+    for i in "${!MENU_MODES[@]}"; do
+        [[ "${MENU_MODES[i]}" == "uninstall" ]] || continue
+        echo -e "  \033[0;32m${MENU_NUMS[i]}\033[0m. 還原 ${MENU_DESCS[i]}"
+    done
 
     echo ""
     echo -e "\033[1;34m▼ 全域動作\033[0m"
-    local global_start=$((max_install_num * 2 + 1))
+    local global_start=$((MENU_INSTALL_COUNT * 2 + 1))
     echo -e "  \033[0;32m$global_start\033[0m. 安裝所有設定"
     echo -e "  \033[0;32m$((global_start + 1))\033[0m. 還原所有設定"
     echo -e "  \033[0;32m$((global_start + 2))\033[0m. 顯示所有設定狀態"
@@ -212,10 +222,9 @@ run_script() {
 install_all() {
     header "安裝所有設定"
 
-    local scripts=($(discover_scripts))
-    local first=true
+    local script first=true
 
-    for script in "${scripts[@]}"; do
+    for script in "${ALL_SCRIPTS[@]}"; do
         $first || echo ""
         first=false
         run_script "$script" "-i"
@@ -236,10 +245,9 @@ uninstall_all() {
         return 0
     fi
 
-    local scripts=($(discover_scripts))
-    local first=true
+    local script first=true
 
-    for script in "${scripts[@]}"; do
+    for script in "${ALL_SCRIPTS[@]}"; do
         $first || echo ""
         first=false
         run_script "$script" "-u"
@@ -249,15 +257,22 @@ uninstall_all() {
     header "所有設定已還原！"
 }
 
+# Probe whether a script actually supports a status mode: run its usage
+# output and look for an -s/--status option line. Never grep the script's
+# source text — literals like "-s" in echo strings would false-positive.
+script_supports_status() {
+    local script="$1"
+    bash "$SCRIPT_DIR/$script" -h 2>/dev/null | grep -Eq -- '^[[:space:]]*-s([,|[:space:]]|--status)'
+}
+
 # Show status for all scripts
 show_status() {
     header "設定狀態"
     echo ""
 
-    local scripts=($(discover_scripts))
-    for script in "${scripts[@]}"; do
-        # Check if script supports -s
-        if grep -q "\-s\|--status" "$SCRIPT_DIR/$script" 2>/dev/null; then
+    local script
+    for script in "${ALL_SCRIPTS[@]}"; do
+        if script_supports_status "$script"; then
             "$SCRIPT_DIR/$script" -s
             echo ""
         fi
@@ -270,30 +285,31 @@ show_status() {
 
 # Get max install number
 get_max_install_num() {
-    local max=0
-    while IFS='|' read -r num script mode category desc; do
-        [[ "$mode" == "install" ]] && max=$num
-    done < <(build_menu_options)
-    echo $max
+    echo "$MENU_INSTALL_COUNT"
 }
 
-# Get script info by choice number
+# Resolve a menu choice number against the registry. On match, sets
+# CHOICE_SCRIPT and CHOICE_MODE and returns 0; returns 1 when unknown.
 get_script_by_choice() {
     local choice="$1"
-    while IFS='|' read -r num script mode category desc; do
-        if [[ "$num" == "$choice" ]]; then
-            echo "$script|$mode"
+    local i
+    for i in "${!MENU_NUMS[@]}"; do
+        if [[ "${MENU_NUMS[i]}" == "$choice" ]]; then
+            CHOICE_SCRIPT="${MENU_SCRIPTS[i]}"
+            CHOICE_MODE="${MENU_MODES[i]}"
             return 0
         fi
-    done < <(build_menu_options)
+    done
     return 1
 }
 
 interactive_mode() {
     while true; do
         show_menu
-        local max_install_num=$(get_max_install_num)
+        local max_install_num
+        max_install_num=$(get_max_install_num)
         local global_start=$((max_install_num * 2 + 1))
+        local choice
         read -p "請選擇 [0-$((global_start + 2))]: " choice
 
         case "$choice" in
@@ -315,13 +331,10 @@ interactive_mode() {
                 ;;
             *)
                 # Find the matching option
-                local result=$(get_script_by_choice "$choice")
-                if [[ -n "$result" ]]; then
-                    local script mode
-                    IFS='|' read -r script mode <<< "$result"
+                if get_script_by_choice "$choice"; then
                     local mode_flag="-i"
-                    [[ "$mode" == "uninstall" ]] && mode_flag="-u"
-                    run_script "$script" "$mode_flag"
+                    [[ "$CHOICE_MODE" == "uninstall" ]] && mode_flag="-u"
+                    run_script "$CHOICE_SCRIPT" "$mode_flag"
                     read -p "按 Enter 繼續..."
                 else
                     error "無效選項: $choice"
@@ -352,9 +365,9 @@ usage() {
     echo "  $SCRIPT_NAME -u           # 還原所有設定"
     echo ""
     echo "可用的獨立指令碼:"
-    local scripts=($(discover_scripts))
-    for script in "${scripts[@]}"; do
-        local desc=$(get_script_description "$script")
+    local script desc
+    for script in "${ALL_SCRIPTS[@]}"; do
+        desc=$(get_script_description "$script")
         echo "  ./$script - $desc"
     done
 }
@@ -364,6 +377,7 @@ usage() {
 # ========================================
 
 main() {
+    init_script_registry
     case "${1:-}" in
         -u|--uninstall)
             uninstall_all
