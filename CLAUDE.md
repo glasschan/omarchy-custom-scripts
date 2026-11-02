@@ -187,6 +187,7 @@ When creating a new `setup-xxx.sh`:
 3. Add proper cleanup in `-u` mode
 4. **Pass the QA checklist below**
 5. No registration needed — `setup-all.sh` auto-discovers scripts via `# Category:` / `# Description:` metadata headers (menu, install_all, uninstall_all, show_status all use discovery). Just make sure the headers exist. To keep a script out of the menu/status, add a `# Hidden: yes` header — never a filename exclusion in `setup-all.sh`.
+6. `setup-all.sh -s` probes each script's `-h` usage output for an `-s, --status` option line — keep that line in `usage()` or the script gets skipped in status.
 
 #### **Mandatory QA Checklist for New Scripts**
 
