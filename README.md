@@ -89,6 +89,7 @@
 - **F4 切換輸入法方案**（scj6 ↔ 倉頡五代）
 - **右 Shift 切換中英文**
 - **自動部署**：執行後會自動重啟 fcitx5 並等待部署完成（最長 10 秒）
+- **`-u` 完整還原**：`-i` 修改 `fcitx5/profile`、`config` 前先記錄原狀快照（存於 `~/.local/state/omarchy-custom-scripts/setup-input/`），`-u` 還原至 byte-identical；檔案原本不存在則整個移除，不留空殼
 
 **v4 注意事項**：
 
