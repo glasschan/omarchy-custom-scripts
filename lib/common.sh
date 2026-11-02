@@ -81,16 +81,6 @@ confirm() {
     [[ "$confirm" == "y" || "$confirm" == "Y" ]]
 }
 
-config_contains() {
-    local file="$1"
-    local pattern="$2"
-    [[ -f "$file" ]] && grep -q "$pattern" "$file"
-}
-
-ensure_dir() {
-    mkdir -p "$(dirname "$1")"
-}
-
 create_backup() {
     local file="$1"
     local backup_file="${file}.bak.$(date +%s)"
@@ -120,22 +110,4 @@ strip_block() {
         cut_line=$((cut_line - 1))
     fi
     sed -i "${cut_line},\$d" "$file"
-}
-
-# Standard usage template (scripts can append their own examples)
-usage_template() {
-    cat <<EOF
-Usage: $SCRIPT_NAME [OPTION]
-
-Options:
-  -i, --install     安裝/設定 (預設)
-  -u, --uninstall   還原設定
-  -s, --status      顯示目前狀態
-  -h, --help        顯示此說明
-
-Examples:
-  $SCRIPT_NAME              # 安裝/設定
-  $SCRIPT_NAME -u           # 還原設定
-  $SCRIPT_NAME -s           # 檢查狀態
-EOF
 }
