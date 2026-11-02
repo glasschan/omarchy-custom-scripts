@@ -49,7 +49,7 @@ Removed in v4 (kept on `v3` branch): `setup-keyboard-swap.sh`, `setup-gaming.sh`
 
 ### Common Patterns Across All Scripts
 
- 1. **Helper functions at top**: `info()`, `warn()`, `error()`, `detail()`, `header()` - all use ANSI colors
+ 1. **Helpers from `lib/common.sh`**: `info()`, `warn()`, `error()`, `detail()`, `header()` - all use ANSI colors; `error()` exits immediately (no code after it runs)
  2. **Idempotent checks**: Always check if already installed/configured before making changes
  3. **Package detection**: Uses `pacman -Q pkgname` to check for existing packages
  4. **AUR helper fallback**: `paru` → `yay` → `sudo pacman`

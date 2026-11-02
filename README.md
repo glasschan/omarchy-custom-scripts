@@ -269,7 +269,7 @@ main "$@"
 
 - **記錄函數**：`info()`, `warn()`, `error()`, `detail()`, `header()` - 自動套用顏色
 - **套件管理**：`check_package()`, `install_package()` - 自動偵測 paru/yay/sudo
-- **工具函數**：`config_contains()`, `ensure_dir()`, `create_backup()`
+- **工具函數**：`create_backup()`, `confirm()`, `strip_block()`（v4 Lua marker 區塊移除）
 
 ## ⚠️ 已知陷阱與最佳實務 (Bash Pitfalls)
 
