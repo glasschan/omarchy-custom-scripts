@@ -16,7 +16,7 @@ Root owns: `setup-all.sh` (orchestrator + interactive menu), all `setup-*.sh` fe
 ## Local Contracts
 
 - Every setup/fix script must support `-i` install, `-u` uninstall/restore, `-s` status check, `-h` help
-- Every script declares `# Category:` and `# Description:` metadata headers — `setup-all.sh` auto-discovers scripts from these, so a new script without them never appears in the menu
+- Every script declares `# Category:` and `# Description:` metadata headers — `setup-all.sh` auto-discovers scripts from these, so a new script without them never appears in the menu; a `# Hidden: yes` header opts a script out of menu/status (e.g. the `setup-rime-scj.sh` legacy wrapper)
 - Idempotency is mandatory: running `-i` twice must leave config files byte-identical (no duplicate lines, no stacking)
 - Scripts source `lib/common.sh` for logging/package helpers; never re-implement them locally
 - Package install chain: `paru` → `yay` → `sudo pacman` (via `install_package`)
