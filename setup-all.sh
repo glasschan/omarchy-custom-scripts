@@ -217,8 +217,7 @@ install_all() {
 uninstall_all() {
     header "還原所有設定"
 
-    read -p "確定要還原所有設定嗎？ (y/N): " confirm
-    if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+    if ! confirm "確定要還原所有設定嗎？"; then
         info "取消還原"
         return 0
     fi

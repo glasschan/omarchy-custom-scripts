@@ -72,8 +72,7 @@ EOF
 uninstall_fix() {
     header "Restoring from fix"
     
-    read -p "This will remove the current keyring. Do you have a backup? (y/N): " confirm
-    if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+    if ! confirm "This will remove the current keyring. Do you have a backup?"; then
         info "Cancelled"
         return 0
     fi
