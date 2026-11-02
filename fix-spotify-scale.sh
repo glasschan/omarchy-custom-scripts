@@ -12,17 +12,17 @@ source "$SCRIPT_DIR/lib/common.sh"
 
 FLAGS_FILE="$HOME/.config/spotify-flags.conf"
 EXPECTED_FLAG="--force-device-scale-factor=1"
+# 安裝時記錄 flags 原狀嘅快照目錄（lib/common.sh snapshot_original 系列據此還原）
+STATE_DIR="$HOME/.local/state/omarchy-custom-scripts/fix-spotify-scale"
 
-# Non-destructive contract:
-# -i: only guarantee the flag line exists; every other line is preserved verbatim
-# -u: remove only the flag line; keep the rest (restore from the -i backup if the
-#     leftover bytes differ from the pre-install state); delete the file if it
-#     becomes empty (it was flag-only). Never touches /usr/share/omarchy/.
-
-# Most recent backup created by create_backup during a previous -i
-latest_backup() {
-    ls -1t -- "$FLAGS_FILE".bak.* 2>/dev/null | head -1
-}
+# Non-destructive contract (-i/-u are a strict pair):
+# -i: only guarantee the flag line exists; every other line is preserved
+#     verbatim; the pre-install file (or its absence) is snapshotted to
+#     STATE_DIR first — but only when -i actually modifies something
+# -u: restore the snapshot and remove STATE_DIR; with no snapshot, -i never
+#     touched the file (any flag present was already there), so -u leaves it
+#     byte-identical untouched
+# Never touches /usr/share/omarchy/.
 
 install_fix() {
     header "Fixing Spotify scaling"
@@ -33,9 +33,9 @@ install_fix() {
     fi
 
     mkdir -p "$(dirname "$FLAGS_FILE")"
+    snapshot_original "$STATE_DIR" "$FLAGS_FILE" flags
 
     if [[ -f "$FLAGS_FILE" ]]; then
-        create_backup "$FLAGS_FILE"
         # Terminate a missing final newline so the flag lands on its own line
         # and existing flags stay byte-identical
         [[ -n "$(tail -c 1 "$FLAGS_FILE")" ]] && echo "" >> "$FLAGS_FILE"
@@ -43,7 +43,7 @@ install_fix() {
         detail "Appended $EXPECTED_FLAG (existing flags preserved)"
     else
         echo "$EXPECTED_FLAG" > "$FLAGS_FILE"
-        detail "Set --force-device-scale-factor=1"
+        detail "Set $EXPECTED_FLAG"
     fi
 
     echo ""
@@ -54,27 +54,15 @@ install_fix() {
 uninstall_fix() {
     header "Restoring Spotify scaling"
 
-    if [[ ! -f "$FLAGS_FILE" ]] || ! grep -qxF -- "$EXPECTED_FLAG" "$FLAGS_FILE"; then
-        info "Scale flag not found, nothing to remove"
+    # True pair with -i: no snapshot means -i made no change (the flag, if
+    # present, predates this script), so -u must not remove anything
+    if [[ ! -d "$STATE_DIR" ]]; then
+        info "No install-time snapshot; $FLAGS_FILE was not modified by this script — leaving it untouched"
         return 0
     fi
 
-    grep -vxF -- "$EXPECTED_FLAG" "$FLAGS_FILE" > "${FLAGS_FILE}.tmp"
-    mv "${FLAGS_FILE}.tmp" "$FLAGS_FILE"
-
-    if [[ ! -s "$FLAGS_FILE" ]]; then
-        rm -f "$FLAGS_FILE"
-        info "Removed $FLAGS_FILE (contained only the scale flag)"
-    else
-        local backup
-        backup="$(latest_backup)"
-        if [[ -n "$backup" ]] && ! cmp -s "$FLAGS_FILE" "$backup"; then
-            cp "$backup" "$FLAGS_FILE"
-            detail "Restored pre-install flags from $backup"
-        else
-            info "Removed $EXPECTED_FLAG (other flags preserved)"
-        fi
-    fi
+    restore_original "$STATE_DIR" "$FLAGS_FILE" flags
+    cleanup_state_dir "$STATE_DIR"
 
     echo "Restart Spotify for changes to take effect."
 }
@@ -98,6 +86,10 @@ show_status() {
         echo -e "  ${GREEN}✓${NC} Spotify is installed"
     else
         echo -e "  ${YELLOW}!${NC} Spotify is not installed"
+    fi
+
+    if [[ -d "$STATE_DIR" ]]; then
+        echo -e "  ${YELLOW}!${NC} 有安裝時快照待還原（spotify-flags.conf 原狀），執行 -u 還原"
     fi
 
     echo ""
