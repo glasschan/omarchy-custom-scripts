@@ -31,12 +31,10 @@ check_dependencies() {
 
     if ! command -v omarchy-capture-screenshot &>/dev/null; then
         error "omarchy-capture-screenshot 未安裝（需要 Omarchy v4）"
-        exit 1
     fi
 
     if ! tesseract --list-langs 2>/dev/null | grep -q "chi_tra"; then
         error "tesseract-data-chi_tra 未安裝，請先安裝以使用 OCR 功能"
-        exit 1
     fi
 
     info "依賴檢查完成"
@@ -179,8 +177,6 @@ main() {
             ;;
         *)
             error "未知選項: $1"
-            usage
-            exit 1
             ;;
     esac
 }

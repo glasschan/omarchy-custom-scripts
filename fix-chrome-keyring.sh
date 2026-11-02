@@ -155,8 +155,6 @@ main() {
             ;;
         *)
             error "Unknown option: $1"
-            usage
-            exit 1
             ;;
     esac
 }

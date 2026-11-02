@@ -187,7 +187,6 @@ run_script() {
 
     if [[ ! -f "$SCRIPT_DIR/$script" ]]; then
         error "找不到 script: $script"
-        return 1
     fi
 
     info "執行 $script..."
@@ -311,7 +310,6 @@ interactive_mode() {
                     read -p "按 Enter 繼續..."
                 else
                     error "無效選項: $choice"
-                    sleep 1
                 fi
                 ;;
         esac
@@ -369,8 +367,6 @@ main() {
             ;;
         *)
             error "未知選項: $1"
-            usage
-            exit 1
             ;;
     esac
 }
