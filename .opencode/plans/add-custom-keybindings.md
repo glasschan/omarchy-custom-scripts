@@ -1,5 +1,7 @@
 # Add Custom Keybindings Plan
 
+> ⚠️ **歷史文件 — 已被 v4 取代。** 本計畫係 v3 時代嘅產物：佢設計嘅 wtype/ydotool 自動貼上同寫入 `~/.config/hypr/bindings.conf` 嘅做法已隨 Omarchy v4 移除（v4 改用 Lua 設定）。而家嘅實作係 `setup-keybindings.sh` 以 marker 區塊附加到 `~/.config/hypr/bindings.lua`（`o.bind()` API），剪貼簿改用 Omarchy v4 內建管理員，自動貼上用 `hyprctl dispatch sendshortcut`。以下內容僅作歷史參考，唔反映現況。
+
 ## Summary
 Create a setup script `setup-keybindings.sh` in this repository to apply requested custom keybindings for screenshot, screen recording, and clipboard manager with auto-paste feature.
 
