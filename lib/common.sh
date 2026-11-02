@@ -91,6 +91,60 @@ create_backup() {
 }
 
 # ========================================
+# State snapshots
+# ========================================
+
+# Record the pre-install original of <file> under <state_dir>/<name>, for -u
+# to restore (state_dir is ~/.local/state/omarchy-custom-scripts/<script>).
+# Never overwrites an existing snapshot, so repeat -i keeps the true
+# pre-install state. A <name>.absent marker records that the file did not exist.
+# Usage: snapshot_original <state_dir> <file> <name>
+snapshot_original() {
+    local state_dir="$1" file="$2" name="$3"
+    if [[ -f "$state_dir/$name" || -f "$state_dir/$name.absent" ]]; then
+        detail "已有 $name 原狀快照，保留最原始版本"
+        return 0
+    fi
+    mkdir -p "$state_dir"
+    if [[ -f "$file" ]]; then
+        cp "$file" "$state_dir/$name"
+        detail "已記錄 $file 原狀"
+    else
+        touch "$state_dir/$name.absent"
+        detail "已記錄 $file 原本不存在"
+    fi
+}
+
+# Restore what snapshot_original recorded for <name>. No snapshot means -i
+# never modified the file, so this skips (and -u callers may treat "no
+# snapshot dir" as "nothing this script added, touch nothing").
+# Usage: restore_original <state_dir> <file> <name>
+restore_original() {
+    local state_dir="$1" file="$2" name="$3"
+    if [[ -f "$state_dir/$name" ]]; then
+        mkdir -p "$(dirname "$file")"
+        cp "$state_dir/$name" "$file"
+        info "已還原 $file 原狀"
+    elif [[ -f "$state_dir/$name.absent" ]]; then
+        rm -f "$file"
+        info "已移除 $file（原本不存在，不留空殼）"
+    else
+        info "$file 安裝時未被修改，跳過還原"
+    fi
+}
+
+# Remove a snapshot dir once its state has been restored (plus the now-empty
+# parent). No-op when the dir is already gone.
+# Usage: cleanup_state_dir <state_dir>
+cleanup_state_dir() {
+    local state_dir="$1"
+    if [[ -d "$state_dir" ]]; then
+        rm -rf "$state_dir"
+        rmdir "$(dirname "$state_dir")" 2>/dev/null || true
+    fi
+}
+
+# ========================================
 # Hyprland Lua marker blocks
 # ========================================
 

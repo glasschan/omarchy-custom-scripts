@@ -163,18 +163,14 @@ show_status() {
         if is_installed; then
             echo -e "  ${GREEN}✓${NC} 自訂快捷鍵已安裝"
 
-            if grep -qF -- "$OCR_BIND_MARKER" "$BINDINGS_LUA"; then
-                if check_ocr_lang; then
+            if check_ocr_lang; then
+                if grep -qF -- "$OCR_BIND_MARKER" "$BINDINGS_LUA"; then
                     echo -e "  ${GREEN}✓${NC} OCR 快捷鍵已就緒 (chi_tra)"
                 else
-                    echo -e "  ${YELLOW}!${NC} OCR 快捷鍵未就緒（缺 $OCR_PKG 語言包，重跑 -i 可補裝）"
+                    echo -e "  ${YELLOW}!${NC} OCR 快捷鍵未寫入（重跑 -i 可加入）"
                 fi
             else
-                if check_ocr_lang; then
-                    echo -e "  ${YELLOW}!${NC} OCR 快捷鍵未寫入（重跑 -i 可加入）"
-                else
-                    echo -e "  ${YELLOW}!${NC} OCR 快捷鍵未就緒（缺 $OCR_PKG 語言包，重跑 -i 可補裝）"
-                fi
+                echo -e "  ${YELLOW}!${NC} OCR 快捷鍵未就緒（缺 $OCR_PKG 語言包，重跑 -i 可補裝）"
             fi
         else
             echo -e "  ${RED}✗${NC} 自訂快捷鍵未安裝"

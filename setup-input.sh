@@ -16,7 +16,8 @@ source "$SCRIPT_DIR/lib/common.sh"
 RIME_DIR="$HOME/.local/share/fcitx5/rime"
 FCITX5_PROFILE="$HOME/.config/fcitx5/profile"
 FCITX5_CONFIG="$HOME/.config/fcitx5/config"
-# 安裝時記錄 profile/config 原狀嘅快照目錄，-u 據此還原
+# 安裝時記錄 profile/config 原狀嘅快照目錄（lib/common.sh snapshot_original 系列
+# 據此還原；-u 還原後會移除）
 STATE_DIR="$HOME/.local/state/omarchy-custom-scripts/setup-input"
 
 # 檢查 rime-scj 是否安裝
@@ -66,50 +67,10 @@ setup_fcitx5_alttrigger() {
     fi
 
     info "移除 fcitx5 AltTriggerKeys 的 Shift_L 綁定..."
-    snapshot_original "$FCITX5_CONFIG" config
+    snapshot_original "$STATE_DIR" "$FCITX5_CONFIG" config
     sed -i '/^\[Hotkey\/AltTriggerKeys\]$/,/^\[/{/^0=Shift_L$/d}' "$FCITX5_CONFIG"
 
     info "fcitx5 AltTriggerKeys Shift_L 已移除"
-}
-
-# 修改檔案前記錄其原狀，供 -u 還原（已有快照時唔覆寫，保留最原始狀態）
-snapshot_original() {
-    local file="$1" name="$2"
-    if [[ -f "$STATE_DIR/$name" || -f "$STATE_DIR/$name.absent" ]]; then
-        detail "已有 $name 原狀快照，保留最原始版本"
-        return 0
-    fi
-    mkdir -p "$STATE_DIR"
-    if [[ -f "$file" ]]; then
-        cp "$file" "$STATE_DIR/$name"
-        detail "已記錄 $file 原狀"
-    else
-        touch "$STATE_DIR/$name.absent"
-        detail "已記錄 $file 原本不存在"
-    fi
-}
-
-# 還原 snapshot_original 記錄嘅原狀；無快照代表安裝時冇改過，跳過
-restore_original() {
-    local file="$1" name="$2"
-    if [[ -f "$STATE_DIR/$name" ]]; then
-        mkdir -p "$(dirname "$file")"
-        cp "$STATE_DIR/$name" "$file"
-        info "已還原 $file 原狀"
-    elif [[ -f "$STATE_DIR/$name.absent" ]]; then
-        rm -f "$file"
-        info "已移除 $file（原本不存在，不留空殼）"
-    else
-        info "$file 安裝時未被修改，跳過還原"
-    fi
-}
-
-# 清走快照目錄（連同空嘅上層目錄）
-cleanup_state_dir() {
-    if [[ -d "$STATE_DIR" ]]; then
-        rm -rf "$STATE_DIR"
-        rmdir "$(dirname "$STATE_DIR")" 2>/dev/null || true
-    fi
 }
 
 # 安裝 fcitx5-rime
@@ -255,7 +216,7 @@ setup_fcitx5_profile() {
 
     info "修復 fcitx5 profile（keyboard-us + rime）..."
     mkdir -p "$(dirname "$FCITX5_PROFILE")"
-    snapshot_original "$FCITX5_PROFILE" profile
+    snapshot_original "$STATE_DIR" "$FCITX5_PROFILE" profile
 
     cat > "$FCITX5_PROFILE" << 'EOF'
 [Groups/0]
@@ -450,9 +411,9 @@ uninstall() {
     info "開始還原 fcitx5-rime 設定..."
 
     # 先還原安裝時改過嘅 fcitx5 profile/config（依安裝時快照）
-    restore_original "$FCITX5_CONFIG" config
-    restore_original "$FCITX5_PROFILE" profile
-    cleanup_state_dir
+    restore_original "$STATE_DIR" "$FCITX5_CONFIG" config
+    restore_original "$STATE_DIR" "$FCITX5_PROFILE" profile
+    cleanup_state_dir "$STATE_DIR"
 
     remove_scj6_custom
     remove_default_custom
