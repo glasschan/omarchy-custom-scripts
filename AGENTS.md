@@ -13,14 +13,16 @@ Branch mapping: `master` targets Omarchy v4 (Hyprland Lua configs, fcitx5 under 
 
 Root owns: `setup-all.sh` (orchestrator + interactive menu), all `setup-*.sh` feature scripts, `fix-*.sh` one-off fixes, `test-idempotency.sh`, `README.md`, `CLAUDE.md`. `lib/` is owned by its child doc below.
 
+`docs/agents/` holds engineering-skill config, not code: `issue-tracker.md` (work lives in GitHub issues for `glasschan/omarchy-custom-scripts`), `triage-labels.md` (five canonical labels), `domain.md` (single-context: `GLOSSARY.md` + `docs/adr/`, created lazily). Edit these files directly; skills read them, nothing else does.
+
 ## Local Contracts
 
 - Every setup/fix script must support `-i` install, `-u` uninstall/restore, `-s` status check, `-h` help
-- Every script declares `# Category:` and `# Description:` metadata headers — `setup-all.sh` auto-discovers scripts from these, so a new script without them never appears in the menu
+- Every script declares `# Category:` and `# Description:` metadata headers — `setup-all.sh` auto-discovers scripts from these, so a new script without them never appears in the menu; a `# Hidden: yes` header opts a script out of menu/status (e.g. the `setup-rime-scj.sh` legacy wrapper)
 - Idempotency is mandatory: running `-i` twice must leave config files byte-identical (no duplicate lines, no stacking)
-- Scripts source `lib/common.sh` for logging/package helpers; never re-implement them locally
+- Scripts source `lib/common.sh` for logging/package helpers; never re-implement them locally. `error()` exits — nothing after an `error` call is reachable
 - Package install chain: `paru` → `yay` → `sudo pacman` (via `install_package`)
-- Hyprland v4 Lua configs (`input.lua`, `looknfeel.lua`, `bindings.lua`) are modified by appending `-- BEGIN/END ... (setup-X.sh)` marker blocks — never rewrite the Omarchy template; `-u` truncates from the BEGIN marker to EOF
+- Hyprland v4 Lua configs (`input.lua`, `looknfeel.lua`, `bindings.lua`) are modified by appending `-- BEGIN/END ... (setup-X.sh)` marker blocks — never rewrite the Omarchy template; `-u` truncates from the BEGIN marker to EOF via `lib/common.sh` `strip_block <file> <marker>` (single implementation; scripts keep only their path + marker string)
 - Never edit `/usr/share/omarchy/` or `~/.local/share/omarchy/` (Omarchy defaults); user configs live in `~/.config/...`; uninstall reverts only what the script changed
 - No interactive prompts during install except optional-feature confirmations
 

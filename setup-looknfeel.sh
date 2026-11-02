@@ -28,18 +28,7 @@ is_installed() {
     [[ -f "$LOOKNFEEL_LUA" ]] && grep -qF -- "$BEGIN_MARKER" "$LOOKNFEEL_LUA"
 }
 
-# 移除區塊（區塊永遠附加在檔尾：由 BEGIN 行起刪到 EOF）
-strip_block() {
-    local first_line
-    first_line=$(grep -n -F -- "$BEGIN_MARKER" "$LOOKNFEEL_LUA" | cut -d: -f1 | head -1)
-    [[ -z "$first_line" ]] && return 0
-
-    local cut_line=$first_line
-    if (( cut_line > 1 )) && [[ -z "$(sed -n "$((cut_line - 1))p" "$LOOKNFEEL_LUA")" ]]; then
-        cut_line=$((cut_line - 1))
-    fi
-    sed -i "${cut_line},\$d" "$LOOKNFEEL_LUA"
-}
+# 移除區塊：共用 lib/common.sh 嘅 strip_block（檔案路徑 + marker 由參數傳入）
 
 # 安裝設定
 install() {
@@ -60,7 +49,7 @@ install() {
     create_backup "$LOOKNFEEL_LUA"
 
     # -f 時先移除舊區塊再重加
-    strip_block
+    strip_block "$LOOKNFEEL_LUA" "$BEGIN_MARKER"
 
     # 附加自訂 Look & Feel 設定（用戶檔案在 Omarchy 預設之後載入，覆蓋生效）
     cat >>"$LOOKNFEEL_LUA" <<'EOF'
@@ -214,7 +203,7 @@ uninstall() {
 
     # 移除我們的自訂設定 (透過 marker 判斷)
     if is_installed; then
-        strip_block
+        strip_block "$LOOKNFEEL_LUA" "$BEGIN_MARKER"
         info "已移除自訂設定（looknfeel.lua 回復 Omarchy v4 範本 + 預設）"
     else
         info "沒有找到自訂 Look & Feel 設定，跳過"
@@ -279,8 +268,6 @@ main() {
             ;;
         *)
             error "未知選項: $1"
-            usage
-            exit 1
             ;;
     esac
 }

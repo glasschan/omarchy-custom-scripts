@@ -42,18 +42,33 @@ get_script_description() {
     echo "${desc:-$script}"
 }
 
-# Discover all setup scripts (exclude setup-all.sh itself and setup-rime-scj.sh)
+# Discover all scripts by their declared metadata: any setup-*.sh / fix-*.sh
+# in the repo root that carries BOTH "# Category:" and "# Description:"
+# headers is discoverable. Scripts opt out of the menu with a "# Hidden: yes"
+# header. Adding a new script with the headers is enough to appear in the menu,
+# status list, and install/uninstall-all — no registration needed.
+
+# A script is hidden from the menu when its "# Hidden:" header is yes/true/1
+is_script_hidden() {
+    local script="$1" hidden
+    hidden=$(get_script_metadata "$script" "Hidden")
+    [[ "$hidden" =~ ^[Yy]es$|^[Tt]rue$|^1$ ]]
+}
+
 discover_scripts() {
     local scripts=()
-    for script in "$SCRIPT_DIR"/setup-*.sh; do
-        local script_base=$(basename "$script")
-        [[ "$script_base" == "setup-all.sh" ]] && continue
-        [[ "$script_base" == "setup-rime-scj.sh" ]] && continue
+    local script script_base
+    for script in "$SCRIPT_DIR"/setup-*.sh "$SCRIPT_DIR"/fix-*.sh; do
+        [[ -f "$script" ]] || continue
+        script_base=$(basename "$script")
+        # Never discover the orchestrator itself
+        [[ "$script_base" == "$SCRIPT_NAME" ]] && continue
+        # Metadata headers are mandatory: no headers, no menu entry
+        [[ -n "$(get_script_metadata "$script_base" "Category")" ]] || continue
+        [[ -n "$(get_script_metadata "$script_base" "Description")" ]] || continue
+        # "# Hidden: yes" keeps a script out of the menu/status
+        is_script_hidden "$script_base" && continue
         scripts+=("$script_base")
-    done
-    # Add standalone scripts
-    for script in "$SCRIPT_DIR"/fix-chrome-keyring.sh "$SCRIPT_DIR"/fix-spotify-scale.sh; do
-        [[ -f "$script" ]] && scripts+=("$(basename "$script")")
     done
     echo "${scripts[@]}"
 }
@@ -187,7 +202,6 @@ run_script() {
 
     if [[ ! -f "$SCRIPT_DIR/$script" ]]; then
         error "找不到 script: $script"
-        return 1
     fi
 
     info "執行 $script..."
@@ -217,8 +231,7 @@ install_all() {
 uninstall_all() {
     header "還原所有設定"
 
-    read -p "確定要還原所有設定嗎？ (y/N): " confirm
-    if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+    if ! confirm "確定要還原所有設定嗎？"; then
         info "取消還原"
         return 0
     fi
@@ -312,7 +325,6 @@ interactive_mode() {
                     read -p "按 Enter 繼續..."
                 else
                     error "無效選項: $choice"
-                    sleep 1
                 fi
                 ;;
         esac
@@ -370,8 +382,6 @@ main() {
             ;;
         *)
             error "未知選項: $1"
-            usage
-            exit 1
             ;;
     esac
 }

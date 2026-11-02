@@ -49,7 +49,7 @@ Removed in v4 (kept on `v3` branch): `setup-keyboard-swap.sh`, `setup-gaming.sh`
 
 ### Common Patterns Across All Scripts
 
- 1. **Helper functions at top**: `info()`, `warn()`, `error()`, `detail()`, `header()` - all use ANSI colors
+ 1. **Helpers from `lib/common.sh`**: `info()`, `warn()`, `error()`, `detail()`, `header()` - all use ANSI colors; `error()` exits immediately (no code after it runs)
  2. **Idempotent checks**: Always check if already installed/configured before making changes
  3. **Package detection**: Uses `pacman -Q pkgname` to check for existing packages
  4. **AUR helper fallback**: `paru` → `yay` → `sudo pacman`
@@ -186,7 +186,7 @@ When creating a new `setup-xxx.sh`:
 2. Make it idempotent (check if already configured)
 3. Add proper cleanup in `-u` mode
 4. **Pass the QA checklist below**
-5. No registration needed — `setup-all.sh` auto-discovers scripts via `# Category:` / `# Description:` metadata headers (menu, install_all, uninstall_all, show_status all use discovery). Just make sure the headers exist.
+5. No registration needed — `setup-all.sh` auto-discovers scripts via `# Category:` / `# Description:` metadata headers (menu, install_all, uninstall_all, show_status all use discovery). Just make sure the headers exist. To keep a script out of the menu/status, add a `# Hidden: yes` header — never a filename exclusion in `setup-all.sh`.
 
 #### **Mandatory QA Checklist for New Scripts**
 
@@ -211,3 +211,17 @@ Before merging any new script:
 - **OS**: Omarchy Linux (Arch-based) with Hyprland
 - **AUR helpers**: `paru` or `yay` (falls back to `sudo pacman`)
 - **Wayland tools**: `wl-copy` (clipboard), `hyprctl` (Hyprland control)
+
+## Agent skills
+
+### Issue tracker
+
+Issues and specs for this repo live as GitHub issues in `glasschan/omarchy-custom-scripts`, managed with the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Five canonical roles map to same-named GitHub labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `GLOSSARY.md` at the repo root plus ADRs in `docs/adr/`, both created lazily by `/domain-modeling`. See `docs/agents/domain.md`.
