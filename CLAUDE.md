@@ -40,7 +40,7 @@ All scripts follow this pattern:
 | `setup-fonts.sh` | Fonts + Chromium scale fix | `~/.config/fontconfig/fonts.conf`, `~/.config/chromium-flags.conf`, gsettings |
 | `setup-input.sh` | fcitx5-rime + Quick Cangjie input method | `~/.local/share/fcitx5/rime/*`, `~/.config/fcitx5/{config,profile}` |
 | `setup-macos-input.sh` | macOS-like keyboard/trackpad behavior | `~/.config/hypr/input.lua` (marker block) |
-| `setup-distrobox.sh` | Distrobox + DistroShelf container tools | `~/.bashrc`, `~/.config/distrobox/distrobox.ini` |
+| `setup-distrobox.sh` | Distrobox + DistroShelf container tools | `~/.bashrc` |
 | `setup-keybindings.sh` | Custom screenshot/recording/clipboard bindings | `~/.config/hypr/bindings.lua` (marker block) |
 | `setup-foot.sh` | foot terminal paste/copy keybindings | `~/.config/foot/foot.ini` |
 | `fix-chrome-keyring.sh` | Fix Chrome keyring password popup | `~/.local/share/keyrings/*` |
