@@ -18,18 +18,16 @@ source "$SCRIPT_DIR/lib/common.sh"
 #   ALL_SCRIPTS   — discovered scripts, discovery order (install/uninstall-all,
 #                   status, usage iterate this)
 #   CATEGORY_ORDER — unique categories in display order (menu grouping)
-#   MENU_NUMS / MENU_SCRIPTS / MENU_MODES / MENU_CATEGORIES / MENU_DESCS —
-#                   parallel arrays, one entry per menu option: all install
-#                   entries first, then all uninstall entries
+#   MENU_ENTRIES  — one entry per menu option: "script|mode|category|desc"
+#                   strings, all install entries first, then all uninstall
+#                   entries. desc is the last field so a '|' inside a
+#                   description cannot corrupt the other fields; the option
+#                   number is the entry's index + 1
 #   MENU_INSTALL_COUNT — highest install option number
 # No function re-derives the menu; they all read these arrays.
 ALL_SCRIPTS=()
 CATEGORY_ORDER=()
-MENU_NUMS=()
-MENU_SCRIPTS=()
-MENU_MODES=()
-MENU_CATEGORIES=()
-MENU_DESCS=()
+MENU_ENTRIES=()
 MENU_INSTALL_COUNT=0
 
 # Extract metadata from a script
@@ -47,16 +45,9 @@ get_script_category() {
     echo "${category:-Other}"
 }
 
-# Get script description
+# Get script description (discover_scripts() guarantees it is non-empty)
 get_script_description() {
-    local script="$1"
-    local desc
-    desc=$(get_script_metadata "$script" "Description")
-    if [[ -z "$desc" ]]; then
-        # Fallback to second line comment
-        desc=$(sed -n '2p' "$SCRIPT_DIR/$script" | sed -E 's/^# //')
-    fi
-    echo "${desc:-$script}"
+    get_script_metadata "$1" "Description"
 }
 
 # Discover all scripts by their declared metadata: any setup-*.sh / fix-*.sh
@@ -115,48 +106,33 @@ group_scripts_by_category() {
     done
 }
 
-# Fill the MENU_* parallel arrays with the numbered menu options.
-# Install entries first (category order, discovery order within a category),
-# then uninstall entries in the same order.
+# Parse one "script|mode|category|desc" menu entry into the ME_* variables
+parse_menu_entry() {
+    IFS='|' read -r ME_SCRIPT ME_MODE ME_CATEGORY ME_DESC <<< "$1"
+}
+
+# Append one menu entry per script in <mode> (category order, discovery order
+# within a category). Shared by the install and uninstall halves of the menu.
+append_entries() {
+    local mode="$1" category script
+    for category in "${CATEGORY_ORDER[@]}"; do
+        for script in "${ALL_SCRIPTS[@]}"; do
+            [[ "$(get_script_category "$script")" == "$category" ]] || continue
+            MENU_ENTRIES+=("$script|$mode|$category|$(get_script_description "$script")")
+        done
+    done
+}
+
+# Fill MENU_ENTRIES with the numbered menu options: install entries first,
+# then uninstall entries in the same order. Option numbers are index + 1.
 build_menu_options() {
-    MENU_NUMS=()
-    MENU_SCRIPTS=()
-    MENU_MODES=()
-    MENU_CATEGORIES=()
-    MENU_DESCS=()
+    MENU_ENTRIES=()
 
     group_scripts_by_category
 
-    local num=1 category script desc
-
-    # Install options
-    for category in "${CATEGORY_ORDER[@]}"; do
-        for script in "${ALL_SCRIPTS[@]}"; do
-            [[ "$(get_script_category "$script")" == "$category" ]] || continue
-            desc=$(get_script_description "$script")
-            MENU_NUMS+=("$num")
-            MENU_SCRIPTS+=("$script")
-            MENU_MODES+=("install")
-            MENU_CATEGORIES+=("$category")
-            MENU_DESCS+=("$desc")
-            ((num++))
-        done
-    done
-    MENU_INSTALL_COUNT=$((num - 1))
-
-    # Uninstall options
-    for category in "${CATEGORY_ORDER[@]}"; do
-        for script in "${ALL_SCRIPTS[@]}"; do
-            [[ "$(get_script_category "$script")" == "$category" ]] || continue
-            desc=$(get_script_description "$script")
-            MENU_NUMS+=("$num")
-            MENU_SCRIPTS+=("$script")
-            MENU_MODES+=("uninstall")
-            MENU_CATEGORIES+=("$category")
-            MENU_DESCS+=("$desc")
-            ((num++))
-        done
-    done
+    append_entries "install"
+    MENU_INSTALL_COUNT="${#MENU_ENTRIES[@]}"
+    append_entries "uninstall"
 }
 
 # Build the whole registry once per run; every mode reads from these arrays
@@ -174,21 +150,23 @@ show_menu() {
     echo ""
 
     local i last_category=""
-    for i in "${!MENU_MODES[@]}"; do
-        [[ "${MENU_MODES[i]}" == "install" ]] || continue
-        if [[ "$last_category" != "${MENU_CATEGORIES[i]}" ]]; then
+    for i in "${!MENU_ENTRIES[@]}"; do
+        parse_menu_entry "${MENU_ENTRIES[i]}"
+        [[ "$ME_MODE" == "install" ]] || continue
+        if [[ "$last_category" != "$ME_CATEGORY" ]]; then
             echo ""
-            echo -e "\033[1;34m▼ ${MENU_CATEGORIES[i]}\033[0m"
-            last_category="${MENU_CATEGORIES[i]}"
+            echo -e "\033[1;34m▼ ${ME_CATEGORY}\033[0m"
+            last_category="$ME_CATEGORY"
         fi
-        echo -e "  \033[0;32m${MENU_NUMS[i]}\033[0m. ${MENU_DESCS[i]}"
+        echo -e "  \033[0;32m$((i + 1))\033[0m. ${ME_DESC}"
     done
 
     echo ""
     echo -e "\033[1;34m▼ 還原設定\033[0m"
-    for i in "${!MENU_MODES[@]}"; do
-        [[ "${MENU_MODES[i]}" == "uninstall" ]] || continue
-        echo -e "  \033[0;32m${MENU_NUMS[i]}\033[0m. 還原 ${MENU_DESCS[i]}"
+    for i in "${!MENU_ENTRIES[@]}"; do
+        parse_menu_entry "${MENU_ENTRIES[i]}"
+        [[ "$ME_MODE" == "uninstall" ]] || continue
+        echo -e "  \033[0;32m$((i + 1))\033[0m. 還原 ${ME_DESC}"
     done
 
     echo ""
@@ -283,20 +261,16 @@ show_status() {
 # Interactive Mode
 # ========================================
 
-# Get max install number
-get_max_install_num() {
-    echo "$MENU_INSTALL_COUNT"
-}
-
 # Resolve a menu choice number against the registry. On match, sets
 # CHOICE_SCRIPT and CHOICE_MODE and returns 0; returns 1 when unknown.
 get_script_by_choice() {
     local choice="$1"
     local i
-    for i in "${!MENU_NUMS[@]}"; do
-        if [[ "${MENU_NUMS[i]}" == "$choice" ]]; then
-            CHOICE_SCRIPT="${MENU_SCRIPTS[i]}"
-            CHOICE_MODE="${MENU_MODES[i]}"
+    for i in "${!MENU_ENTRIES[@]}"; do
+        if [[ "$((i + 1))" == "$choice" ]]; then
+            parse_menu_entry "${MENU_ENTRIES[i]}"
+            CHOICE_SCRIPT="$ME_SCRIPT"
+            CHOICE_MODE="$ME_MODE"
             return 0
         fi
     done
@@ -306,9 +280,7 @@ get_script_by_choice() {
 interactive_mode() {
     while true; do
         show_menu
-        local max_install_num
-        max_install_num=$(get_max_install_num)
-        local global_start=$((max_install_num * 2 + 1))
+        local global_start=$((MENU_INSTALL_COUNT * 2 + 1))
         local choice
         read -p "請選擇 [0-$((global_start + 2))]: " choice
 
