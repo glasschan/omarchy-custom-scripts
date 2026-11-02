@@ -102,7 +102,7 @@ group_scripts_by_category() {
     done
 
     CATEGORY_ORDER=()
-    for cat in "系統設定" "輸入法" "鍵盤" "快捷鍵" "遊戲相容" "容器工具" "修復工具" "Other"; do
+    for cat in "系統設定" "輸入法" "鍵盤" "快捷鍵" "容器工具" "修復工具" "Other"; do
         if [[ " ${seen[*]} " == *" $cat "* ]]; then
             CATEGORY_ORDER+=("$cat")
         fi
