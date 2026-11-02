@@ -211,3 +211,17 @@ Before merging any new script:
 - **OS**: Omarchy Linux (Arch-based) with Hyprland
 - **AUR helpers**: `paru` or `yay` (falls back to `sudo pacman`)
 - **Wayland tools**: `wl-copy` (clipboard), `hyprctl` (Hyprland control)
+
+## Agent skills
+
+### Issue tracker
+
+Issues and specs for this repo live as GitHub issues in `glasschan/omarchy-custom-scripts`, managed with the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Five canonical roles map to same-named GitHub labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `GLOSSARY.md` at the repo root plus ADRs in `docs/adr/`, both created lazily by `/domain-modeling`. See `docs/agents/domain.md`.

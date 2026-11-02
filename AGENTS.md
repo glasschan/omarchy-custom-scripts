@@ -13,6 +13,8 @@ Branch mapping: `master` targets Omarchy v4 (Hyprland Lua configs, fcitx5 under 
 
 Root owns: `setup-all.sh` (orchestrator + interactive menu), all `setup-*.sh` feature scripts, `fix-*.sh` one-off fixes, `test-idempotency.sh`, `README.md`, `CLAUDE.md`. `lib/` is owned by its child doc below.
 
+`docs/agents/` holds engineering-skill config, not code: `issue-tracker.md` (work lives in GitHub issues for `glasschan/omarchy-custom-scripts`), `triage-labels.md` (five canonical labels), `domain.md` (single-context: `GLOSSARY.md` + `docs/adr/`, created lazily). Edit these files directly; skills read them, nothing else does.
+
 ## Local Contracts
 
 - Every setup/fix script must support `-i` install, `-u` uninstall/restore, `-s` status check, `-h` help
