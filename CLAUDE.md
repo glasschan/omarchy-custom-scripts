@@ -43,13 +43,14 @@ All scripts follow this pattern:
 | `setup-distrobox.sh` | Distrobox + DistroShelf container tools | `~/.bashrc` |
 | `setup-keybindings.sh` | Custom screenshot/recording/clipboard bindings | `~/.config/hypr/bindings.lua` (marker block) |
 | `setup-foot.sh` | foot terminal paste/copy keybindings | `~/.config/foot/foot.ini` |
+| `fix-spotify-scale.sh` | Spotify 1080p scaling fix (append-only, snapshot round trip) | `~/.config/spotify-flags.conf`, snapshot under `~/.local/state/omarchy-custom-scripts/fix-spotify-scale/` |
 | `fix-chrome-keyring.sh` | Fix Chrome keyring password popup | `~/.local/share/keyrings/*` |
 
 Removed in v4 (kept on `v3` branch): `setup-keyboard-swap.sh`, `setup-gaming.sh`, `lib/elephant-clipboard-activate.sh`.
 
 ### Common Patterns Across All Scripts
 
- 1. **Helpers from `lib/common.sh`**: `info()`, `warn()`, `error()`, `detail()`, `header()` - all use ANSI colors; `error()` exits immediately (no code after it runs)
+ 1. **Helpers from `lib/common.sh`**: `info()`, `warn()`, `error()`, `detail()`, `header()` - all use ANSI colors; `error()` exits immediately (no code after it runs); state snapshots via `snapshot_original`/`restore_original`/`cleanup_state_dir`
  2. **Idempotent checks**: Always check if already installed/configured before making changes
  3. **Package detection**: Uses `pacman -Q pkgname` to check for existing packages
  4. **AUR helper fallback**: `paru` → `yay` → `sudo pacman`
@@ -168,6 +169,11 @@ There is no formal test suite. Test by:
 - Validate after any Lua change: `hyprctl reload && hyprctl configerrors` (empty output = clean); check bindings with `omarchy menu keybindings --print`
 - Never edit `/usr/share/omarchy/` or `~/.local/share/omarchy/` (Omarchy defaults; reading is fine)
 
+### Spotify flags (`fix-spotify-scale.sh`)
+
+- `-i` only guarantees `--force-device-scale-factor=1` is present (appends it; every other line preserved verbatim) and snapshots the pre-install file first; if the flag is already there, `-i` is a no-op and takes no snapshot
+- `-u`/`-i` are a strict pair: what `-i` did not add, `-u` must not remove — with no snapshot, `-u` leaves the file untouched (a hand-added flag survives); with one, it restores the pre-install bytes and removes the snapshot dir
+
 ### Input Method (fcitx5-rime)
 
 - Direct file manipulation (no `fcitx5-configtool`) because GUI tools block scripts
@@ -175,7 +181,7 @@ There is no formal test suite. Test by:
 - v4 runs fcitx5 under systemd: `systemctl --user restart omarchy-fcitx5.service` (never `killall` + manual start)
 - IM env vars (`QT_IM_MODULE` etc.) are Omarchy v4 defaults — scripts don't set them
 - The script checks/repairs `~/.config/fcitx5/profile` (post-v4-upgrade corruption left rime unreachable)
-- `-u` fully restores what `-i` changed in `~/.config/fcitx5/{profile,config}`: `-i` snapshots originals to `~/.local/state/omarchy-custom-scripts/setup-input/` (a `<name>.absent` marker when the file didn't exist; an existing snapshot is never overwritten, so repeat `-i` keeps the true pre-install state), `-u` copies snapshots back byte-identical, removes files it created, and deletes the snapshot dir
+- `-u` fully restores what `-i` changed in `~/.config/fcitx5/{profile,config}`: `-i` snapshots originals (via the shared `lib/common.sh` `snapshot_original` — never overwritten, `<name>.absent` marker when absent) to `~/.local/state/omarchy-custom-scripts/setup-input/`, so repeat `-i` keeps the true pre-install state; `-u` restores byte-identical via `restore_original`, removes files it created, and deletes the snapshot dir with `cleanup_state_dir`
 - Auto-deploy: restart the service, wait up to 10s for `rime/build/`
 - **kb_options must stay `compose:caps`** (v3 value): v4's default adds `shift:both_capslock_cancel`, which breaks rime's alone-Right-Shift CN/EN toggle (XKB-level interference). `setup-macos-input.sh` overrides this in its `input.lua` marker block — don't drop that line
 
