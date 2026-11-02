@@ -187,7 +187,8 @@ When creating a new `setup-xxx.sh`:
 2. Make it idempotent (check if already configured)
 3. Add proper cleanup in `-u` mode
 4. **Pass the QA checklist below**
-5. No registration needed — `setup-all.sh` auto-discovers scripts via `# Category:` / `# Description:` metadata headers (menu, install_all, uninstall_all, show_status all use discovery). Just make sure the headers exist. To keep a script out of the menu/status, add a `# Hidden: yes` header — never a filename exclusion in `setup-all.sh`.
+5. Register it in `test-idempotency.sh`'s `SCRIPT_CONFIG_MAP` (one `script|config` line) so the idempotency harness covers it in both single-script and full-run modes
+6. No registration needed — `setup-all.sh` auto-discovers scripts via `# Category:` / `# Description:` metadata headers (menu, install_all, uninstall_all, show_status all use discovery). Just make sure the headers exist. To keep a script out of the menu/status, add a `# Hidden: yes` header — never a filename exclusion in `setup-all.sh`.
 
 #### **Mandatory QA Checklist for New Scripts**
 
