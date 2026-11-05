@@ -21,25 +21,13 @@ source "$SCRIPT_DIR/lib/common.sh"
 LOOKNFEEL_LUA="$HOME/.config/hypr/looknfeel.lua"
 
 BEGIN_MARKER="-- BEGIN macOS looknfeel settings (setup-looknfeel.sh)"
-END_MARKER="-- END macOS looknfeel settings (setup-looknfeel.sh)"
 
 # 檢查是否已安裝
 is_installed() {
     [[ -f "$LOOKNFEEL_LUA" ]] && grep -qF -- "$BEGIN_MARKER" "$LOOKNFEEL_LUA"
 }
 
-# 移除區塊（區塊永遠附加在檔尾：由 BEGIN 行起刪到 EOF）
-strip_block() {
-    local first_line
-    first_line=$(grep -n -F -- "$BEGIN_MARKER" "$LOOKNFEEL_LUA" | cut -d: -f1 | head -1)
-    [[ -z "$first_line" ]] && return 0
-
-    local cut_line=$first_line
-    if (( cut_line > 1 )) && [[ -z "$(sed -n "$((cut_line - 1))p" "$LOOKNFEEL_LUA")" ]]; then
-        cut_line=$((cut_line - 1))
-    fi
-    sed -i "${cut_line},\$d" "$LOOKNFEEL_LUA"
-}
+# 移除區塊：共用 lib/common.sh 嘅 strip_block（檔案路徑 + marker 由參數傳入）
 
 # 安裝設定
 install() {
@@ -60,7 +48,7 @@ install() {
     create_backup "$LOOKNFEEL_LUA"
 
     # -f 時先移除舊區塊再重加
-    strip_block
+    strip_block "$LOOKNFEEL_LUA" "$BEGIN_MARKER"
 
     # 附加自訂 Look & Feel 設定（用戶檔案在 Omarchy 預設之後載入，覆蓋生效）
     cat >>"$LOOKNFEEL_LUA" <<'EOF'
@@ -214,7 +202,7 @@ uninstall() {
 
     # 移除我們的自訂設定 (透過 marker 判斷)
     if is_installed; then
-        strip_block
+        strip_block "$LOOKNFEEL_LUA" "$BEGIN_MARKER"
         info "已移除自訂設定（looknfeel.lua 回復 Omarchy v4 範本 + 預設）"
     else
         info "沒有找到自訂 Look & Feel 設定，跳過"
@@ -237,9 +225,10 @@ show_status() {
         fi
 
         # 顯示目前生效的設定（來自 hyprctl，而非檔案內容）
-        local ROUNDING=$(hyprctl getoption decoration:rounding 2>/dev/null | awk '/^int:/{print $2}')
-        local BORDER_SIZE=$(hyprctl getoption general:border_size 2>/dev/null | awk '/^int:/{print $2}')
-        local BORDER_RESIZE=$(hyprctl getoption general:resize_on_border 2>/dev/null | awk '/^bool:/{print $2}')
+        local ROUNDING BORDER_SIZE BORDER_RESIZE
+        ROUNDING=$(hyprctl getoption decoration:rounding 2>/dev/null | awk '/^int:/{print $2}')
+        BORDER_SIZE=$(hyprctl getoption general:border_size 2>/dev/null | awk '/^int:/{print $2}')
+        BORDER_RESIZE=$(hyprctl getoption general:resize_on_border 2>/dev/null | awk '/^bool:/{print $2}')
         echo -e "  ${CYAN}ℹ${NC}  圓角: $ROUNDING px / 邊框: $BORDER_SIZE px / 邊框調整: $BORDER_RESIZE"
     else
         echo -e "  ${RED}✗${NC} looknfeel.lua 不存在"
@@ -279,8 +268,6 @@ main() {
             ;;
         *)
             error "未知選項: $1"
-            usage
-            exit 1
             ;;
     esac
 }

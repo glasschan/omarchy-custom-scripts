@@ -15,6 +15,10 @@ source "$SCRIPT_DIR/lib/common.sh"
 
 RIME_DIR="$HOME/.local/share/fcitx5/rime"
 FCITX5_PROFILE="$HOME/.config/fcitx5/profile"
+FCITX5_CONFIG="$HOME/.config/fcitx5/config"
+# 安裝時記錄 profile/config 原狀嘅快照目錄（lib/common.sh snapshot_original 系列
+# 據此還原；-u 還原後會移除）
+STATE_DIR="$HOME/.local/state/omarchy-custom-scripts/setup-input"
 
 # 檢查 rime-scj 是否安裝
 check_rime_scj() {
@@ -63,8 +67,8 @@ setup_fcitx5_alttrigger() {
     fi
 
     info "移除 fcitx5 AltTriggerKeys 的 Shift_L 綁定..."
-    local fcitx5_config="$HOME/.config/fcitx5/config"
-    sed -i '/^\[Hotkey\/AltTriggerKeys\]$/,/^\[/{/^0=Shift_L$/d}' "$fcitx5_config"
+    snapshot_original "$STATE_DIR" "$FCITX5_CONFIG" config
+    sed -i '/^\[Hotkey\/AltTriggerKeys\]$/,/^\[/{/^0=Shift_L$/d}' "$FCITX5_CONFIG"
 
     info "fcitx5 AltTriggerKeys Shift_L 已移除"
 }
@@ -93,7 +97,8 @@ setup_rime_scj() {
     info "下載並安裝 rime-scj..."
     mkdir -p "$RIME_DIR"
 
-    local temp_dir=$(mktemp -d)
+    local temp_dir
+    temp_dir=$(mktemp -d)
     git clone --depth 1 https://github.com/rime/rime-scj.git "$temp_dir"
 
     cp "$temp_dir"/*.yaml "$RIME_DIR/"
@@ -212,7 +217,7 @@ setup_fcitx5_profile() {
 
     info "修復 fcitx5 profile（keyboard-us + rime）..."
     mkdir -p "$(dirname "$FCITX5_PROFILE")"
-    create_backup "$FCITX5_PROFILE"
+    snapshot_original "$STATE_DIR" "$FCITX5_PROFILE" profile
 
     cat > "$FCITX5_PROFILE" << 'EOF'
 [Groups/0]
@@ -336,6 +341,10 @@ show_status() {
     else
         echo -e "  ${RED}✗${NC} fcitx5 profile 缺少 rime"
     fi
+
+    if [[ -d "$STATE_DIR" ]]; then
+        echo -e "  ${YELLOW}!${NC} 有安裝時快照待還原（profile/config 原狀），執行 -u 還原"
+    fi
 }
 
 # 安裝模式
@@ -402,11 +411,17 @@ install() {
 uninstall() {
     info "開始還原 fcitx5-rime 設定..."
 
+    # 先還原安裝時改過嘅 fcitx5 profile/config（依安裝時快照）
+    restore_original "$STATE_DIR" "$FCITX5_CONFIG" config
+    restore_original "$STATE_DIR" "$FCITX5_PROFILE" profile
+    cleanup_state_dir "$STATE_DIR"
+
     remove_scj6_custom
     remove_default_custom
     remove_rime_scj
 
     info "fcitx5-rime 設定已還原！"
+    info "注意: fcitx5 之後可能自行改寫 profile/config，屬正常，不影響本次還原結果"
     info "注意: fcitx5-rime 套件未被移除，如需移除請手動執行:"
     info "  sudo pacman -R fcitx5-rime fcitx5-config-qt"
 }
@@ -417,7 +432,7 @@ usage() {
     echo ""
     echo "Options:"
     echo "  -i, --install     安裝/設定輸入法 (預設)"
-    echo "  -u, --uninstall   還原輸入法設定"
+    echo "  -u, --uninstall   還原輸入法設定（含 fcitx5 profile/config 原狀）"
     echo "  -s, --status      顯示目前狀態"
     echo "  -h, --help        顯示此說明"
     echo ""
@@ -443,8 +458,6 @@ main() {
             ;;
         *)
             error "未知選項: $1"
-            usage
-            exit 1
             ;;
     esac
 }

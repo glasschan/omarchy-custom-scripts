@@ -81,39 +81,88 @@ confirm() {
     [[ "$confirm" == "y" || "$confirm" == "Y" ]]
 }
 
-config_contains() {
-    local file="$1"
-    local pattern="$2"
-    [[ -f "$file" ]] && grep -q "$pattern" "$file"
-}
-
-ensure_dir() {
-    mkdir -p "$(dirname "$1")"
-}
-
 create_backup() {
     local file="$1"
-    local backup_file="${file}.bak.$(date +%s)"
+    local backup_file
+    backup_file="${file}.bak.$(date +%s)"
     if [[ -f "$file" ]]; then
         cp "$file" "$backup_file"
         detail "已備份原始設定: $backup_file"
     fi
 }
 
-# Standard usage template (scripts can append their own examples)
-usage_template() {
-    cat <<EOF
-Usage: $SCRIPT_NAME [OPTION]
+# ========================================
+# State snapshots
+# ========================================
 
-Options:
-  -i, --install     安裝/設定 (預設)
-  -u, --uninstall   還原設定
-  -s, --status      顯示目前狀態
-  -h, --help        顯示此說明
+# Record the pre-install original of <file> under <state_dir>/<name>, for -u
+# to restore (state_dir is ~/.local/state/omarchy-custom-scripts/<script>).
+# Never overwrites an existing snapshot, so repeat -i keeps the true
+# pre-install state. A <name>.absent marker records that the file did not exist.
+# Usage: snapshot_original <state_dir> <file> <name>
+snapshot_original() {
+    local state_dir="$1" file="$2" name="$3"
+    if [[ -f "$state_dir/$name" || -f "$state_dir/$name.absent" ]]; then
+        detail "已有 $name 原狀快照，保留最原始版本"
+        return 0
+    fi
+    mkdir -p "$state_dir"
+    if [[ -f "$file" ]]; then
+        cp "$file" "$state_dir/$name"
+        detail "已記錄 $file 原狀"
+    else
+        touch "$state_dir/$name.absent"
+        detail "已記錄 $file 原本不存在"
+    fi
+}
 
-Examples:
-  $SCRIPT_NAME              # 安裝/設定
-  $SCRIPT_NAME -u           # 還原設定
-  $SCRIPT_NAME -s           # 檢查狀態
-EOF
+# Restore what snapshot_original recorded for <name>. No snapshot means -i
+# never modified the file, so this skips (and -u callers may treat "no
+# snapshot dir" as "nothing this script added, touch nothing").
+# Usage: restore_original <state_dir> <file> <name>
+restore_original() {
+    local state_dir="$1" file="$2" name="$3"
+    if [[ -f "$state_dir/$name" ]]; then
+        mkdir -p "$(dirname "$file")"
+        cp "$state_dir/$name" "$file"
+        info "已還原 $file 原狀"
+    elif [[ -f "$state_dir/$name.absent" ]]; then
+        rm -f "$file"
+        info "已移除 $file（原本不存在，不留空殼）"
+    else
+        info "$file 安裝時未被修改，跳過還原"
+    fi
+}
+
+# Remove a snapshot dir once its state has been restored (plus the now-empty
+# parent). No-op when the dir is already gone.
+# Usage: cleanup_state_dir <state_dir>
+cleanup_state_dir() {
+    local state_dir="$1"
+    if [[ -d "$state_dir" ]]; then
+        rm -rf "$state_dir"
+        rmdir "$(dirname "$state_dir")" 2>/dev/null || true
+    fi
+}
+
+# ========================================
+# Hyprland Lua marker blocks
+# ========================================
+
+# Remove a marker block appended by a setup script (v4 Lua configs).
+# Blocks are always appended at end of file: delete from the BEGIN marker line
+# to EOF, plus the one preceding blank line, so the file returns byte-identical
+# to its pre-install content. No-op when the marker is absent.
+# Usage: strip_block <file> <begin_marker>
+strip_block() {
+    local file="$1" marker="$2"
+    local first_line
+    first_line=$(grep -n -F -- "$marker" "$file" | cut -d: -f1 | head -1)
+    [[ -z "$first_line" ]] && return 0
+
+    local cut_line=$first_line
+    if (( cut_line > 1 )) && [[ -z "$(sed -n "$((cut_line - 1))p" "$file")" ]]; then
+        cut_line=$((cut_line - 1))
+    fi
+    sed -i "${cut_line},\$d" "$file"
 }

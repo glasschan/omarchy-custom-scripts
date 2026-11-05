@@ -22,19 +22,7 @@ check_macos_input() {
     [[ -f "$INPUT_LUA" ]] && grep -qF -- "$BEGIN_MARKER" "$INPUT_LUA"
 }
 
-# 移除舊區塊（區塊永遠附加在檔尾：由 BEGIN 行起刪到 EOF，
-# 連同前方附加嘅空行一齊清走，還原後與安裝前 byte-identical）
-strip_block() {
-    local first_line
-    first_line=$(grep -n -F -- "$BEGIN_MARKER" "$INPUT_LUA" | cut -d: -f1 | head -1)
-    [[ -z "$first_line" ]] && return 0
-
-    local cut_line=$first_line
-    if (( cut_line > 1 )) && [[ -z "$(sed -n "$((cut_line - 1))p" "$INPUT_LUA")" ]]; then
-        cut_line=$((cut_line - 1))
-    fi
-    sed -i "${cut_line},\$d" "$INPUT_LUA"
-}
+# 移除舊區塊：共用 lib/common.sh 嘅 strip_block（檔案路徑 + marker 由參數傳入）
 
 # 設定 macOS 風格輸入
 setup_macos_input() {
@@ -54,7 +42,7 @@ setup_macos_input() {
     create_backup "$INPUT_LUA"
 
     # -f 時先移除舊區塊再重加
-    strip_block
+    strip_block "$INPUT_LUA" "$BEGIN_MARKER"
 
     cat >> "$INPUT_LUA" << 'EOF'
 
@@ -119,7 +107,7 @@ reset_input() {
         return 0
     fi
 
-    strip_block
+    strip_block "$INPUT_LUA" "$BEGIN_MARKER"
 
     if command -v hyprctl >/dev/null 2>&1; then
         hyprctl reload &>/dev/null && info "Hyprland 設定已重新載入" || warn "無法重新載入 Hyprland"
@@ -134,8 +122,9 @@ show_status() {
 
     if check_macos_input; then
         echo -e "  ${GREEN}✓${NC} macOS 風格輸入已設定"
-        local rate=$(hyprctl getoption input:repeat_rate 2>/dev/null | awk '/^int:/{print $2}')
-        local natural=$(hyprctl getoption input:natural_scroll 2>/dev/null | awk '/^bool:/{print $2}')
+        local rate natural
+        rate=$(hyprctl getoption input:repeat_rate 2>/dev/null | awk '/^int:/{print $2}')
+        natural=$(hyprctl getoption input:natural_scroll 2>/dev/null | awk '/^bool:/{print $2}')
         echo -e "  ${CYAN}ℹ${NC}  目前 repeat_rate: $rate / natural_scroll: $natural"
     else
         echo -e "  ${YELLOW}!${NC} macOS 風格輸入未設定"
@@ -202,8 +191,6 @@ main() {
             ;;
         *)
             error "未知選項: $1"
-            usage
-            exit 1
             ;;
     esac
 }

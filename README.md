@@ -59,6 +59,8 @@
 
 - **GTK 字體**：MiSans 10
   - 為什麼：支援 CJK、個人覺得耐看
+- **字體自動下載**：`-i` 時 `fc-list` 搵唔到字體就自動下載到 `~/.local/share/fonts/` 並更新字體快取；下載嘅係 MiSans 同 OPPO Sans 兩隻（`-s` 會獨立顯示兩者安裝狀態）
+- **`-d, --download`**：只下載字體（MiSans + OPPO Sans），唔套用 GTK / Chromium 設定
 - **Chromium scale**：設定為 1
   - 為什麼：Hyprland 已經處理 HiDPI，Chromium 再縮放會造成 UI 過大
 
@@ -84,11 +86,13 @@
   - 為什麼：Wayland 原生支援，rime 詞庫可同步、彈性高
 - **快速倉頡 (scj6)**
   - 為什麼：比傳統倉頡學習成本低，重碼率低，適合日常使用
+- **朙月拼音 (luna_pinyin)**：同 scj6、倉頡五代一齊加入 rime 方案列表（F4 可切換）——唔打倉頡時嘅拼音後備
 - **啟動時預設英文模式**
   - 為什麼：多數時候在打程式或英文，預設英文減少切換次數
-- **F4 切換輸入法方案**（scj6 ↔ 倉頡五代）
+- **F4 切換輸入法方案**（scj6 ↔ 倉頡五代 ↔ 朙月拼音）
 - **右 Shift 切換中英文**
 - **自動部署**：執行後會自動重啟 fcitx5 並等待部署完成（最長 10 秒）
+- **`-u` 完整還原**：`-i` 修改 `fcitx5/profile`、`config` 前先記錄原狀快照（存於 `~/.local/state/omarchy-custom-scripts/setup-input/`），`-u` 還原至 byte-identical；檔案原本不存在則整個移除，不留空殼
 
 **v4 注意事項**：
 
@@ -110,7 +114,12 @@
 | repeat_delay | 200ms | 比預設 660ms 短，更快開始重複 |
 | natural_scroll | true | macOS muscle memory |
 | tap_to_click | true | macOS trackpad 習慣 |
+| numlock_by_default | true | 登入即 NumLock on，數字鍵盤直接用 |
+| clickfinger_behavior | true | 觸控板點擊用 clickfinger（一指=左鍵、二指=右鍵），macOS 冇實體左右鍵 |
+| disable_while_typing | true | 打字時暫停觸控板，防 palm 誤觸（macOS 預設行為） |
 | scroll_factor | 0.7 | 滾輪速度更快 |
+
+**`-f, --force`**：強制重新套用（跳過重複檢查，重寫 marker 區塊，用於手動改壞之後還原）。
 
 **v4 實作方式**：以 marker 區塊附加到 `~/.config/hypr/input.lua`（`hl.config({ input = ... })`）；terminal 捲動規則 v4 預設已含（Alacritty/kitty/foot 1.5、ghostty 0.2），無需重複。
 
@@ -201,6 +210,8 @@
 | `-s`, `--status` | 顯示目前狀態 |
 | `-h`, `--help` | 顯示說明 |
 
+個別腳本另有額外參數：`setup-fonts.sh` 嘅 `-d, --download`（只下載字體）、`setup-looknfeel.sh` 同 `setup-macos-input.sh` 嘅 `-f, --force`（強制重新套用）、`setup-all.sh` 嘅 `-m, --menu`（互動選單）。
+
 ### 新增腳本 QA 檢查清單 ✅
 
 新增任何會修改設定檔的腳本之前，請務必先通過這份清單：
@@ -269,7 +280,7 @@ main "$@"
 
 - **記錄函數**：`info()`, `warn()`, `error()`, `detail()`, `header()` - 自動套用顏色
 - **套件管理**：`check_package()`, `install_package()` - 自動偵測 paru/yay/sudo
-- **工具函數**：`config_contains()`, `ensure_dir()`, `create_backup()`
+- **工具函數**：`create_backup()`, `confirm()`, `strip_block()`（v4 Lua marker 區塊移除）
 
 ## ⚠️ 已知陷阱與最佳實務 (Bash Pitfalls)
 

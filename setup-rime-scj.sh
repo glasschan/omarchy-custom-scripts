@@ -6,6 +6,7 @@
 
 # Category: Legacy
 # Description: [Deprecated] Combined fonts + rime-scj setup
+# Hidden: yes
 
 SCRIPT_NAME="$(basename "$0")"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -69,8 +70,6 @@ main() {
             ;;
         *)
             error "未知選項: $1"
-            usage
-            exit 1
             ;;
     esac
 }

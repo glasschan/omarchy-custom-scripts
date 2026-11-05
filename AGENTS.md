@@ -17,12 +17,13 @@ Root owns: `setup-all.sh` (orchestrator + interactive menu), all `setup-*.sh` fe
 
 ## Local Contracts
 
-- Every setup/fix script must support `-i` install, `-u` uninstall/restore, `-s` status check, `-h` help
-- Every script declares `# Category:` and `# Description:` metadata headers — `setup-all.sh` auto-discovers scripts from these, so a new script without them never appears in the menu
+- Every setup/fix script must support `-i` install, `-u` uninstall/restore, `-s` status check, `-h` help; `setup-all.sh` detects `-s` support by probing the script's `-h` usage output for an `-s, --status` line — keep that line in `usage()` or the script is skipped in status
+- Every script declares `# Category:` and `# Description:` metadata headers — `setup-all.sh` auto-discovers scripts from these, so a new script without them never appears in the menu; a `# Hidden: yes` header opts a script out of menu/status (e.g. the `setup-rime-scj.sh` legacy wrapper)
 - Idempotency is mandatory: running `-i` twice must leave config files byte-identical (no duplicate lines, no stacking)
-- Scripts source `lib/common.sh` for logging/package helpers; never re-implement them locally
+- Scripts source `lib/common.sh` for logging/package helpers; never re-implement them locally. `error()` exits — nothing after an `error` call is reachable
 - Package install chain: `paru` → `yay` → `sudo pacman` (via `install_package`)
-- Hyprland v4 Lua configs (`input.lua`, `looknfeel.lua`, `bindings.lua`) are modified by appending `-- BEGIN/END ... (setup-X.sh)` marker blocks — never rewrite the Omarchy template; `-u` truncates from the BEGIN marker to EOF
+- Hyprland v4 Lua configs (`input.lua`, `looknfeel.lua`, `bindings.lua`) are modified by appending `-- BEGIN/END ... (setup-X.sh)` marker blocks — never rewrite the Omarchy template; `-u` truncates from the BEGIN marker to EOF via `lib/common.sh` `strip_block <file> <marker>` (single implementation; scripts keep only their path + marker string)
+- State snapshots: scripts that rewrite existing user files snapshot originals to `~/.local/state/omarchy-custom-scripts/<script>/` at `-i` (a `<name>.absent` marker when the file didn't exist; an existing snapshot is never overwritten); `-u` restores from the snapshot and removes the snapshot dir. Single implementation in `lib/common.sh`: `snapshot_original`/`restore_original`/`cleanup_state_dir <state_dir> <file> <name>` (consumers: `setup-input.sh`, `fix-spotify-scale.sh`). `-i`/`-u` are a strict pair: no snapshot means `-i` made no change, so `-u` must leave the file untouched — never a second, ad-hoc restore mechanism (`.bak.*` files, `ls -1t` picking)
 - Never edit `/usr/share/omarchy/` or `~/.local/share/omarchy/` (Omarchy defaults); user configs live in `~/.config/...`; uninstall reverts only what the script changed
 - No interactive prompts during install except optional-feature confirmations
 
@@ -34,7 +35,8 @@ Root owns: `setup-all.sh` (orchestrator + interactive menu), all `setup-*.sh` fe
 
 ## Verification
 
-- `./test-idempotency.sh` — runs a script's `-i` twice and asserts config files unchanged; accepts a script name to test just one
+- `./test-idempotency.sh` — runs a script's `-i` twice and asserts config files unchanged; accepts a script name to test just one. Script→config mapping lives in one place (`SCRIPT_CONFIG_MAP`); register a new script there with a single line and both usages pick it up; unregistered names exit non-zero
+- `.github/workflows/ci.yml` (GitHub PR checks) — `lint`: `bash -n` then `shellcheck --severity=warning` over `*.sh` and `lib/*.sh`; `idempotency`: the full suite in a sandboxed `HOME` with privileged binaries (`pacman`, `paru`, `yay`, `hyprctl`, `systemctl`, …) stubbed. Run both locally before pushing
 - Manual: `./setup-all.sh -s` should correctly reflect installed state
 
 ## Core Contract
