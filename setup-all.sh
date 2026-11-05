@@ -289,7 +289,7 @@ interactive_mode() {
                 info "再見！"
                 exit 0
                 ;;
-            $global_start)
+            "$global_start")
                 install_all
                 read -p "按 Enter 繼續..."
                 ;;

@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: bash -n（全部腳本語法）
+        run: |
+          set -euo pipefail
+          for f in *.sh lib/*.sh; do
+            echo "checking $f"
+            bash -n "$f"
+          done
+
+      - name: shellcheck（warning 級）
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq shellcheck
+          shellcheck --version | head -2
+          shellcheck --severity=warning --format=gcc *.sh lib/*.sh
+
+  idempotency:
+    name: idempotency（sandbox HOME）
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # 腳本對象係 Arch/Omarchy 機器。Runner 冇 paru/pacman/hyprctl，所以全部
+      # 特權同系統二進位都換成 no-op stub：唔會裝任何嘢，亦唔會觸碰 runner。
+      - name: stub 特權／系統二進位
+        run: |
+          set -euo pipefail
+          for b in sudo pacman paru yay hyprctl systemctl fcitx5 killall pgrep wl-copy notify-send; do
+            printf '#!/bin/bash\nexit 0\n' | sudo tee "/usr/local/bin/$b" >/dev/null
+            sudo chmod +x "/usr/local/bin/$b"
+          done
+          # tesseract 假裝 chi_tra 已安裝，令 OCR 快捷鍵路徑亦有覆蓋
+          printf '#!/bin/bash\nprintf "List of available languages:\\nchi_tra\\n"\n' | sudo tee /usr/local/bin/tesseract >/dev/null
+          sudo chmod +x /usr/local/bin/tesseract
+
+      - name: 冪等性全跑
+        run: |
+          set -euo pipefail
+          export HOME="$(mktemp -d)"
+          echo "sandbox HOME=$HOME"
+          ./test-idempotency.sh

@@ -83,7 +83,8 @@ confirm() {
 
 create_backup() {
     local file="$1"
-    local backup_file="${file}.bak.$(date +%s)"
+    local backup_file
+    backup_file="${file}.bak.$(date +%s)"
     if [[ -f "$file" ]]; then
         cp "$file" "$backup_file"
         detail "已備份原始設定: $backup_file"

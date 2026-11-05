@@ -35,7 +35,8 @@ check_gtk_font() {
 # 下載並安裝 MiSans
 download_misans() {
     info "下載 MiSans 字體..."
-    local temp_dir=$(mktemp -d)
+    local temp_dir
+    temp_dir=$(mktemp -d)
     local zip_file="$temp_dir/MiSans.zip"
     
     if ! curl -L -o "$zip_file" "$MISANS_URL"; then
@@ -69,7 +70,8 @@ download_misans() {
 # 下載並安裝 OPPO Sans
 download_opposans() {
     info "下載 OPPO Sans 字體..."
-    local temp_dir=$(mktemp -d)
+    local temp_dir
+    temp_dir=$(mktemp -d)
     local zip_file="$temp_dir/OPPOSans.zip"
     
     if ! curl -L -o "$zip_file" "$OPPOSANS_URL"; then

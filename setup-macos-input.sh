@@ -122,8 +122,9 @@ show_status() {
 
     if check_macos_input; then
         echo -e "  ${GREEN}✓${NC} macOS 風格輸入已設定"
-        local rate=$(hyprctl getoption input:repeat_rate 2>/dev/null | awk '/^int:/{print $2}')
-        local natural=$(hyprctl getoption input:natural_scroll 2>/dev/null | awk '/^bool:/{print $2}')
+        local rate natural
+        rate=$(hyprctl getoption input:repeat_rate 2>/dev/null | awk '/^int:/{print $2}')
+        natural=$(hyprctl getoption input:natural_scroll 2>/dev/null | awk '/^bool:/{print $2}')
         echo -e "  ${CYAN}ℹ${NC}  目前 repeat_rate: $rate / natural_scroll: $natural"
     else
         echo -e "  ${YELLOW}!${NC} macOS 風格輸入未設定"

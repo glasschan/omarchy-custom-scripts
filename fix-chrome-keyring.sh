@@ -16,7 +16,8 @@ install_fix() {
     header "Fixing Chrome keyring prompts"
     
     # Backup existing keyring
-    local BACKUP_DIR="$HOME/.local/share/keyrings.bak.$(date +%s)"
+    local BACKUP_DIR
+    BACKUP_DIR="$HOME/.local/share/keyrings.bak.$(date +%s)"
     info "Backing up current keyring to $BACKUP_DIR..."
     
     if [[ -d "$HOME/.local/share/keyrings" ]]; then
@@ -102,7 +103,8 @@ show_status() {
         fi
         
         # Check for extra keyrings
-        local EXTRA_COUNT=$(ls -1 "$HOME/.local/share/keyrings/Default_keyring_"*.keyring 2>/dev/null | wc -l)
+        local EXTRA_COUNT
+        EXTRA_COUNT=$(ls -1 "$HOME/.local/share/keyrings/Default_keyring_"*.keyring 2>/dev/null | wc -l)
         if [[ "$EXTRA_COUNT" -gt 0 ]]; then
             echo -e "  ${YELLOW}!${NC} Found $EXTRA_COUNT extra keyring files"
         else

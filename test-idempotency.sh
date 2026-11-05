@@ -77,7 +77,8 @@ test_script() {
 
 	# 記錄第一次後的狀態
 	if [[ -f "$config_file" ]]; then
-		local checksum1=$(md5sum "$config_file" 2>/dev/null)
+		local checksum1
+		checksum1=$(md5sum "$config_file" 2>/dev/null)
 		detail "Checksum 1: $checksum1"
 	else
 		local checksum1="new_file"
@@ -91,7 +92,8 @@ test_script() {
 
 	# 記錄第二次後的狀態
 	if [[ -f "$config_file" ]]; then
-		local checksum2=$(md5sum "$config_file" 2>/dev/null)
+		local checksum2
+		checksum2=$(md5sum "$config_file" 2>/dev/null)
 		detail "Checksum 2: $checksum2"
 	else
 		local checksum2="new_file"
@@ -103,7 +105,6 @@ test_script() {
 	if [[ "$checksum1" == "$checksum2" ]]; then
 		PASSED=$((PASSED + 1))
 		echo -e "${GREEN}✓ 通過 - 兩次執行結果完全相同${NC}"
-		result="PASS"
 	else
 		FAILED=$((FAILED + 1))
 		echo -e "${RED}✗ 失敗 - 兩次執行結果不同！${NC}"
@@ -111,7 +112,6 @@ test_script() {
 		detail "Checksum 2: $checksum2"
 		detail "設定檔差異："
 		diff -u <(echo "$checksum1") <(echo "$checksum2") || true
-		result="FAIL"
 	fi
 
 	# 恢復備份

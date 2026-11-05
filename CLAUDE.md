@@ -152,6 +152,10 @@ There is no formal test suite. Test by:
 4. Using the idempotency test script:
 
 ```bash
+# Lint (same checks as CI)
+for f in *.sh lib/*.sh; do bash -n "$f"; done
+shellcheck --severity=warning *.sh lib/*.sh
+
 # Test all scripts
 ./test-idempotency.sh
 

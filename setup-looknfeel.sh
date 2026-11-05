@@ -21,7 +21,6 @@ source "$SCRIPT_DIR/lib/common.sh"
 LOOKNFEEL_LUA="$HOME/.config/hypr/looknfeel.lua"
 
 BEGIN_MARKER="-- BEGIN macOS looknfeel settings (setup-looknfeel.sh)"
-END_MARKER="-- END macOS looknfeel settings (setup-looknfeel.sh)"
 
 # 檢查是否已安裝
 is_installed() {
@@ -226,9 +225,10 @@ show_status() {
         fi
 
         # 顯示目前生效的設定（來自 hyprctl，而非檔案內容）
-        local ROUNDING=$(hyprctl getoption decoration:rounding 2>/dev/null | awk '/^int:/{print $2}')
-        local BORDER_SIZE=$(hyprctl getoption general:border_size 2>/dev/null | awk '/^int:/{print $2}')
-        local BORDER_RESIZE=$(hyprctl getoption general:resize_on_border 2>/dev/null | awk '/^bool:/{print $2}')
+        local ROUNDING BORDER_SIZE BORDER_RESIZE
+        ROUNDING=$(hyprctl getoption decoration:rounding 2>/dev/null | awk '/^int:/{print $2}')
+        BORDER_SIZE=$(hyprctl getoption general:border_size 2>/dev/null | awk '/^int:/{print $2}')
+        BORDER_RESIZE=$(hyprctl getoption general:resize_on_border 2>/dev/null | awk '/^bool:/{print $2}')
         echo -e "  ${CYAN}ℹ${NC}  圓角: $ROUNDING px / 邊框: $BORDER_SIZE px / 邊框調整: $BORDER_RESIZE"
     else
         echo -e "  ${RED}✗${NC} looknfeel.lua 不存在"
