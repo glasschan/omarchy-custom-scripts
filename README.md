@@ -14,21 +14,16 @@
 - **個人用途**：不是通用的安裝腳本，是為了自己每次重灌後能快速恢復工作環境
 - **自動化**：所有設定都透過 script 完成，不依賴 GUI 工具或互動精靈
 - **可重複**：可以隨時還原/重新安裝，不會汙染系統
-- **不重寫 Omarchy 範本**：v4 的 `input.lua` / `looknfeel.lua` / `bindings.lua` 以 marker 區塊附加，保留範本註解與 Omarchy 預設
+- **不重寫 Omarchy 範本**：v4 的 `input.lua` / `bindings.lua` 以 marker 區塊附加，保留範本註解與 Omarchy 預設
 
 ## 功能總覽
 
 | 分類 | 腳本 | 功能 |
 | ------ | ------ | ------ |
-| **系統設定** | `setup-fonts.sh` | 字體 + Chromium scale 修復 |
-| **系統設定** | `setup-looknfeel.sh` | Hyprland Look & Feel（圓角、陰影、動畫、白色邊框） |
+| **系統設定** | `setup-fonts.sh` | 字體 + GTK/Electron/Chromium 設定 |
 | **輸入法** | `setup-input.sh` | fcitx5-rime + 快速倉頡 |
 | **鍵盤** | `setup-macos-input.sh` | 鍵盤/觸控板 macOS 行為 |
 | **快捷鍵** | `setup-keybindings.sh` | 截圖、錄影、OCR、剪貼簿快捷鍵 |
-| **快捷鍵** | `setup-foot.sh` | foot 終端機貼上/複製快捷鍵 |
-| **容器工具** | `setup-distrobox.sh` | Distrobox + DistroShelf + `de` alias |
-| **修復工具** | `fix-chrome-keyring.sh` | Chrome keyring 密碼彈窗修復 |
-| **修復工具** | `fix-spotify-scale.sh` | Spotify 1080p 縮放修復 |
 | **相容包裝** | `setup-rime-scj.sh` | [舊版] 字體 + 輸入法組合（已拆分） |
 
 > v3 專屬腳本 `setup-keyboard-swap.sh` 與 `setup-gaming.sh` 已在 v4 移除（Hyprland 改用 Lua 設定後不再適用），保留在 `v3` branch。
@@ -57,26 +52,16 @@
 
 **目標：** 統一顯示環境，避免 HiDPI UI 過大的問題
 
-- **GTK 字體**：MiSans 10
+- **GTK 字體**：OPPO Sans 4.0 9（family 名要跟 `fc-list`：OPPO Sans 係 `OPPO Sans 4.0`，MiSans 係 `MiSans VF`；可用 `FONT_NAME="MiSans VF" ./setup-fonts.sh -i` 換返）
   - 為什麼：支援 CJK、個人覺得耐看
 - **字體自動下載**：`-i` 時 `fc-list` 搵唔到字體就自動下載到 `~/.local/share/fonts/` 並更新字體快取；下載嘅係 MiSans 同 OPPO Sans 兩隻（`-s` 會獨立顯示兩者安裝狀態）
 - **`-d, --download`**：只下載字體（MiSans + OPPO Sans），唔套用 GTK / Chromium 設定
-- **Chromium scale**：設定為 1
+- **Electron / Chromium 字體**：寫 `~/.config/fontconfig/fonts.conf`，將 `sans-serif`、`system-ui`、`-apple-system`、`BlinkMacSystemFont` 等 generic family 指去同一個 `$FONT_NAME`（`monospace` 唔郁，terminal 保留 JetBrainsMono Nerd Font）
+  - 為什麼：Electron / Chromium 唔讀 GTK 設定，只問 fontconfig；Omarchy 預設 `50-omarchy.conf` 會將 `sans-serif` 指派去 Liberation Sans，所以要用 `Liberation Sans` 嗰條規則先真正蓋過
+  - 附 CJK（Noto CJK）+ Nerd Font + Noto Color Emoji fallback；`-u` 會還原原狀（原本冇檔就刪走）
+- **Chromium scale**：設定為 1。`~/.config/chromium-flags.conf` 只會改或者 append 一條 `--force-device-scale-factor`，其他 flags 逐字保留，唔會留低 `.bak`
   - 為什麼：Hyprland 已經處理 HiDPI，Chromium 再縮放會造成 UI 過大
-
-### setup-looknfeel.sh — Hyprland 視覺與動畫
-
-**目標：** macOS 風格 Look & Feel（覆蓋 Omarchy 預設：彩色邊框、0 圓角、無陰影、極慢動畫）
-
-- **近乎透明嘅白色邊框**：1px hairline（macOS 冇彩色邊框，焦點靠陰影區分）
-- **視窗圓角**：10px
-- **陰影 & 毛玻璃**：柔和陰影 + 明亮 vibrancy blur（macOS 風格）
-- **快速彈簧動畫**：macSpring ~300ms（Omarchy 預設 3-4 秒太慢）
-- **無視窗暗化**：`dim_inactive` 關閉（個人偏好 — 滑鼠 focus 轉移時視窗唔變暗）
-- **邊框拖曳調整大小**：`resize_on_border = true`
-- **`-f/--force`**：強制重新套用（還原被手動修改嘅設定）
-
-**v4 實作方式**：以 `-- BEGIN/END macOS looknfeel settings` marker 區塊附加到 `~/.config/hypr/looknfeel.lua`（`hl.config` / `hl.curve` / `hl.animation` Lua API），唔會重寫 Omarchy 範本；`-u` 移除區塊即回復預設。
+- **`-u` 還原**：`-u` 由 `-i` 時嘅快照還原 GTK 三個字體 key 原值、`fonts.conf` 同 `chromium-flags.conf`。原本冇嘅檔案會刪走。`-i` 冇改過嘅嘢，`-u` 唔會掂
 
 ### setup-input.sh — 輸入法
 
@@ -123,17 +108,6 @@
 
 **v4 實作方式**：以 marker 區塊附加到 `~/.config/hypr/input.lua`（`hl.config({ input = ... })`）；terminal 捲動規則 v4 預設已含（Alacritty/kitty/foot 1.5、ghostty 0.2），無需重複。
 
-### setup-distrobox.sh — 容器環境
-
-**目標：** 在主系統內隔離其他發行版，卻仍能整合使用
-
-- **Distrobox**
-  - 為什麼：輕量、shared home、支援 Wayland socket 共享，直接用主系統的字體/主題
-- **DistroShelf**
-  - 為什麼：圖形化管理容器內安裝的 GUI 程式
-- **`de` alias**
-  - 為什麼：`de ubuntu` 比 `distrobox enter ubuntu` 少打很多字
-
 ### setup-keybindings.sh — 快捷鍵設定
 
 **目標：** 截圖、螢幕錄影、OCR、剪貼簿的自訂快捷鍵
@@ -154,22 +128,6 @@
 - **剪貼簿管理員**：Ctrl+\` 開啟 Omarchy v4 內建剪貼簿（`omarchy-shell shell toggle omarchy.clipboard`），另有預設快捷鍵 `Super+Ctrl+V`。v3 的 walker + elephant 自動貼上組合已淘汰
 - **OCR**：使用 `omarchy-capture-text`（v3 的 `-extraction` 後綴指令已改名），以 `OMARCHY_OCR_LANGS=eng+chi_tra` 支援中英混合
 
-### setup-foot.sh — foot 終端機快捷鍵
-
-**目標：** 設定 foot 終端機的貼上/複製快捷鍵（foot 預設的 `Ctrl+Shift+V` 會被自訂 `clipboard-paste` 取代，需要一併保留）
-
-- **貼上**：`Shift+Insert` + `Ctrl+Shift+V`
-- **複製**：`Control+Insert`
-- 修改 `~/.config/foot/foot.ini` 的 `[key-bindings]` section，開新視窗生效
-
-### fix-chrome-keyring.sh — Chrome Keyring 修復
-
-**目標：** 解決 Chrome/Chromium 每次啟動都詢問 keyring 密碼的問題
-
-- 建立未加密的預設 keyring
-- 移除多餘的 keyring 檔案
-- 需要重新登入才能生效
-
 ## 支援的作業系統
 
 - Omarchy Linux v4（Arch-based）— `master` branch；v3 請用 `v3` branch
@@ -189,13 +147,12 @@
 ├── setup-input.sh                   # 輸入法設定
 ├── setup-macos-input.sh             # 鍵盤/觸控板設定
 ├── setup-keybindings.sh             # 截圖/錄影/OCR/剪貼簿快捷鍵
-├── setup-foot.sh                    # foot 終端機貼上/複製快捷鍵
-├── setup-distrobox.sh               # Distrobox 容器工具
-├── fix-chrome-keyring.sh            # Chrome keyring 密碼彈窗修復
-├── fix-spotify-scale.sh             # Spotify 1080p 縮放修復
 ├── test-idempotency.sh              # 冪等性測試工具
-└── setup-rime-scj.sh                # [舊版] 相容包裝
+├── setup-rime-scj.sh                # [舊版] 相容包裝
+└── archive/                         # 已退役腳本，留在 repo 但唔會出現在選單
 ```
+
+`setup-all.sh` 只掃根目錄嘅 `setup-*.sh` 同 `fix-*.sh`，所以退役腳本搬入 `archive/` 就自動消失，檔案本身冇刪。
 
 ## 開發者說明
 
@@ -210,7 +167,7 @@
 | `-s`, `--status` | 顯示目前狀態 |
 | `-h`, `--help` | 顯示說明 |
 
-個別腳本另有額外參數：`setup-fonts.sh` 嘅 `-d, --download`（只下載字體）、`setup-looknfeel.sh` 同 `setup-macos-input.sh` 嘅 `-f, --force`（強制重新套用）、`setup-all.sh` 嘅 `-m, --menu`（互動選單）。
+個別腳本另有額外參數：`setup-fonts.sh` 嘅 `-d, --download`（只下載字體）、`setup-macos-input.sh` 嘅 `-f, --force`（強制重新套用）、`setup-all.sh` 嘅 `-m, --menu`（互動選單）。
 
 ### 新增腳本 QA 檢查清單 ✅
 

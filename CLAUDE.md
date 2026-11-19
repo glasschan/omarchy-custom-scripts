@@ -40,11 +40,9 @@ All scripts follow this pattern:
 | `setup-fonts.sh` | Fonts + Chromium scale fix | `~/.config/fontconfig/fonts.conf`, `~/.config/chromium-flags.conf`, gsettings |
 | `setup-input.sh` | fcitx5-rime + Quick Cangjie input method | `~/.local/share/fcitx5/rime/*`, `~/.config/fcitx5/{config,profile}` |
 | `setup-macos-input.sh` | macOS-like keyboard/trackpad behavior | `~/.config/hypr/input.lua` (marker block) |
-| `setup-distrobox.sh` | Distrobox + DistroShelf container tools | `~/.bashrc` |
 | `setup-keybindings.sh` | Custom screenshot/recording/clipboard bindings | `~/.config/hypr/bindings.lua` (marker block) |
-| `setup-foot.sh` | foot terminal paste/copy keybindings | `~/.config/foot/foot.ini` |
-| `fix-spotify-scale.sh` | Spotify 1080p scaling fix (append-only, snapshot round trip) | `~/.config/spotify-flags.conf`, snapshot under `~/.local/state/omarchy-custom-scripts/fix-spotify-scale/` |
-| `fix-chrome-keyring.sh` | Fix Chrome keyring password popup | `~/.local/share/keyrings/*` |
+
+Retired scripts live in `archive/` (not discovered by `setup-all.sh`, no longer registered in `test-idempotency.sh`): `setup-looknfeel.sh`, `setup-foot.sh`, `setup-distrobox.sh`, `fix-spotify-scale.sh`, `fix-chrome-keyring.sh`.
 
 Removed in v4 (kept on `v3` branch): `setup-keyboard-swap.sh`, `setup-gaming.sh`, `lib/elephant-clipboard-activate.sh`.
 
@@ -173,11 +171,6 @@ shellcheck --severity=warning *.sh lib/*.sh
 - Validate after any Lua change: `hyprctl reload && hyprctl configerrors` (empty output = clean); check bindings with `omarchy menu keybindings --print`
 - Never edit `/usr/share/omarchy/` or `~/.local/share/omarchy/` (Omarchy defaults; reading is fine)
 
-### Spotify flags (`fix-spotify-scale.sh`)
-
-- `-i` only guarantees `--force-device-scale-factor=1` is present (appends it; every other line preserved verbatim) and snapshots the pre-install file first; if the flag is already there, `-i` is a no-op and takes no snapshot
-- `-u`/`-i` are a strict pair: what `-i` did not add, `-u` must not remove — with no snapshot, `-u` leaves the file untouched (a hand-added flag survives); with one, it restores the pre-install bytes and removes the snapshot dir
-
 ### Input Method (fcitx5-rime)
 
 - Direct file manipulation (no `fcitx5-configtool`) because GUI tools block scripts
@@ -215,8 +208,8 @@ Before merging any new script:
 ## Important Files to Reference
 
 - **README.md** - Contains detailed rationale for each design choice
-- **`setup-macos-input.sh` / `setup-looknfeel.sh` / `setup-keybindings.sh`** - Reference pattern for v4 marker-block Lua config scripts
-- **`setup-fonts.sh` / `setup-distrobox.sh`** - Good examples of proper guard patterns
+- **`setup-macos-input.sh` / `setup-keybindings.sh`** - Reference pattern for v4 marker-block Lua config scripts
+- **`setup-fonts.sh`** - Good example of guard patterns and snapshot round trips (`archive/fix-spotify-scale.sh` is the minimal append-only version)
 - **`setup-all.sh`** - Shows how all scripts are orchestrated
 
 ## Dependencies

@@ -23,11 +23,6 @@ SCRIPT_CONFIG_MAP=(
 	"setup-input.sh|$HOME/.local/share/fcitx5/rime/scj6.custom.yaml"
 	"setup-macos-input.sh|$HOME/.config/hypr/input.lua"
 	"setup-keybindings.sh|$HOME/.config/hypr/bindings.lua"
-	"setup-distrobox.sh|$HOME/.bashrc"
-	"setup-foot.sh|$HOME/.config/foot/foot.ini"
-	"setup-looknfeel.sh|$HOME/.config/hypr/looknfeel.lua"
-	"fix-spotify-scale.sh|$HOME/.config/spotify-flags.conf"
-	"fix-chrome-keyring.sh|$HOME/.local/share/keyrings/Default_keyring.keyring"
 )
 
 # 從映射表查出腳本對應的設定檔；未登記則回傳非零
