@@ -77,10 +77,14 @@ install_package() {
 # ========================================
 
 confirm() {
-    read -p "$1 (y/N): " confirm
+    read -rp "$1 (y/N): " confirm
     [[ "$confirm" == "y" || "$confirm" == "Y" ]]
 }
 
+# Legacy: copy <file> to <file>.bak.<epoch>. Retained only because the archived
+# scripts under archive/ still call it. Active scripts must NOT use this —
+# snapshot_original is the single backup mechanism, and lint.sh R2 fails any
+# root-level script that calls create_backup.
 create_backup() {
     local file="$1"
     local backup_file
@@ -150,19 +154,34 @@ cleanup_state_dir() {
 # ========================================
 
 # Remove a marker block appended by a setup script (v4 Lua configs).
-# Blocks are always appended at end of file: delete from the BEGIN marker line
-# to EOF, plus the one preceding blank line, so the file returns byte-identical
-# to its pre-install content. No-op when the marker is absent.
-# Usage: strip_block <file> <begin_marker>
+# Prefer the bounded form: with an END marker, delete only from the BEGIN line
+# to the END line (plus the one preceding blank line), leaving anything the user
+# appended afterwards untouched. Without END, fall back to deleting to EOF.
+# No-op when the BEGIN marker is absent. Returns 1 when an END marker was given
+# but is missing (corrupt block); the caller may report the truncation.
+# Usage: strip_block <file> <begin_marker> [<end_marker>]
 strip_block() {
-    local file="$1" marker="$2"
+    local file="$1" begin="$2" end="${3:-}"
+    [[ -f "$file" ]] || return 0
     local first_line
-    first_line=$(grep -n -F -- "$marker" "$file" | cut -d: -f1 | head -1)
+    first_line=$(grep -n -F -- "$begin" "$file" | cut -d: -f1 | head -1)
     [[ -z "$first_line" ]] && return 0
 
     local cut_line=$first_line
     if (( cut_line > 1 )) && [[ -z "$(sed -n "$((cut_line - 1))p" "$file")" ]]; then
         cut_line=$((cut_line - 1))
     fi
+
+    if [[ -n "$end" ]]; then
+        local end_line
+        end_line=$(grep -n -F -- "$end" "$file" | cut -d: -f1 | awk -v s="$first_line" '$1 > s {print; exit}')
+        if [[ -n "$end_line" ]]; then
+            sed -i "${cut_line},${end_line}d" "$file"
+            return 0
+        fi
+        sed -i "${cut_line},\$d" "$file"
+        return 1
+    fi
+
     sed -i "${cut_line},\$d" "$file"
 }

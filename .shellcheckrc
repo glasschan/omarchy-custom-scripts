@@ -1,0 +1,23 @@
+# shellcheck 專案設定 —— 呢個 repo 嘅 lint 規則。
+# CI (.github/workflows/ci.yml) 同本機都用同一份，唔好喺兩邊分開寫規則。
+#
+# 記錄咗嘅學習（2026-11 實測）：
+#
+# 1. shellcheck 預設只報 error/warning。以下幾個「實測中真係咬過人」嘅
+#    info 級檢查，提升為必須清理，否則 CI 綠燈都唔代表乾淨：
+#
+#    SC2162  read 冇 -r 會食走反斜線。實測：read -p 喺交互選單誤食輸入。
+#    SC2015  A && B || C 唔係 if-then-else。實測：`hyprctl reload &&
+#            info || warn` 喺 reload 成功但 info 失敗時會誤報「無法載入」。
+#            改用 if/else，唔好靠 `||` 收尾。
+#    SC2086  未加引號會觸發 glob／分詞。實測：gsettings get $pair 係
+#            刻意分兩個參數，註明 disable 就得，唔好靜靜雞留低。
+#    SC2012  ls 解析輸出。實測：setup-input.sh 列出 scj6.*，檔名固定，
+#            用 disable 加理由，唔好改成 find 令輸出難讀。
+#
+# 2. 喺程式碼入面用 `# shellcheck disable=SCxxxx` 而唔係喺呢度全域熄咗，
+#    咁樣每個例外都必須寫低理由，將來改動亦唔會無聲擴散。
+#
+# 3. 唔用 `severity=error` 或 `--exclude`：warning 同上述 info 一律要清。
+severity=warning
+enable=SC2162,SC2015,SC2086,SC2012

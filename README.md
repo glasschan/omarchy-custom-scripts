@@ -148,6 +148,8 @@
 ├── setup-macos-input.sh             # 鍵盤/觸控板設定
 ├── setup-keybindings.sh             # 截圖/錄影/OCR/剪貼簿快捷鍵
 ├── test-idempotency.sh              # 冪等性測試工具
+├── lint.sh                          # Lint 入口（規則見 .shellcheckrc）
+├── .shellcheckrc                    # shellcheck 專案規則
 ├── setup-rime-scj.sh                # [舊版] 相容包裝
 └── archive/                         # 已退役腳本，留在 repo 但唔會出現在選單
 ```
@@ -219,6 +221,26 @@ main() {
 main "$@"
 ```
 
+### Lint (`lint.sh`)
+
+所有 lint 規則集中喺 `.shellcheckrc` 同 `lint.sh`，本機同 CI 跑同一份：
+
+```bash
+./lint.sh              # 冇裝 shellcheck 就略過並提示
+./lint.sh --strict     # 冇裝 shellcheck 當失敗（CI 用）
+```
+
+規則分兩層。第一層係 `bash -n` 同 shellcheck；shellcheck 除咗預設嘅 error/warning，仲特別要求清 `SC2162`（`read` 冇 `-r`）、`SC2015`（`A && B || C` 誤報）、`SC2086`（未加引號）、`SC2012`（`ls` 解析輸出）。真係要例外嘅地方，喺程式碼用 `# shellcheck disable=SCxxxx` 寫低理由，唔好喺 `.shellcheckrc` 全域熄。
+
+第二層係由實機踩過嘅坑寫成嘅結構規則：
+
+| 規則 | 防啲乜 |
+| ------ | -------- |
+| R1 每個 `strip_block` 都要傳 END marker | `-u` 由 BEGIN 斬到檔尾，食咗用戶喺區塊之後加嘅設定 |
+| R2 唔准用 `create_backup` | 每次 `-i` 多一個 `.bak.<timestamp>`，而 `-u` 根本唔讀佢；備份只准 `~/.local/state/` 嘅 snapshot |
+| R3 可發現腳本都要登記 `SCRIPT_CONFIG_MAP` | 新腳本漏登記，冪等性測試照樣全綠，等於冇測 |
+| R4 `usage()` 要有 `-s, --status` 同 `-u, --uninstall` | `setup-all.sh` 靠 `-h` 輸出判斷狀態支援，漏咗會被靜靜雞跳過 |
+
 ### 冪等性測試 (`test-idempotency.sh`)
 
 自動驗證所有腳本的冪等性，確保執行兩次後設定檔內容完全相同：
@@ -237,7 +259,7 @@ main "$@"
 
 - **記錄函數**：`info()`, `warn()`, `error()`, `detail()`, `header()` - 自動套用顏色
 - **套件管理**：`check_package()`, `install_package()` - 自動偵測 paru/yay/sudo
-- **工具函數**：`create_backup()`, `confirm()`, `strip_block()`（v4 Lua marker 區塊移除）
+- **工具函數**：`confirm()`, `strip_block()`（v4 Lua marker 區塊移除；有 END marker 時只刪 BEGIN..END，冇就 fallback 斬到檔尾）
 
 ## ⚠️ 已知陷阱與最佳實務 (Bash Pitfalls)
 

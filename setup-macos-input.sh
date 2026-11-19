@@ -22,6 +22,30 @@ check_macos_input() {
     [[ -f "$INPUT_LUA" ]] && grep -qF -- "$BEGIN_MARKER" "$INPUT_LUA"
 }
 
+# reload 後檢查 configerrors，並列出實際生效值（唔使靠估）
+reload_and_verify() {
+    local errors
+    errors=$(hyprctl configerrors 2>/dev/null)
+    if [[ -n "$errors" ]]; then
+        warn "Hyprland 設定有錯誤:"
+        printf '%s\n' "$errors" | sed 's/^/  /'
+    else
+        detail "hyprctl configerrors: 無錯誤"
+    fi
+
+    local key value
+    info "實際生效值:"
+    for key in \
+        input:kb_options input:repeat_rate input:repeat_delay \
+        input:natural_scroll input:numlock_by_default \
+        input:touchpad:natural_scroll input:touchpad:tap_to_click \
+        input:touchpad:clickfinger_behavior input:touchpad:disable_while_typing \
+        input:touchpad:scroll_factor; do
+        value=$(hyprctl getoption "$key" 2>/dev/null | head -1 | awk '{sub(/^[a-z]+:[[:space:]]*/, ""); print}')
+        [[ -n "$value" ]] && printf '  %-42s %s\n' "$key" "$value"
+    done
+}
+
 # 移除舊區塊：共用 lib/common.sh 嘅 strip_block（檔案路徑 + marker 由參數傳入）
 
 # 設定 macOS 風格輸入
@@ -39,10 +63,11 @@ setup_macos_input() {
 
     info "設定 macOS 風格輸入..."
     mkdir -p "$(dirname "$INPUT_LUA")"
-    create_backup "$INPUT_LUA"
+    [[ -f "$INPUT_LUA" ]] || warn "找不到 $INPUT_LUA（似乎唔係 Omarchy v4），會建立新檔"
 
-    # -f 時先移除舊區塊再重加
-    strip_block "$INPUT_LUA" "$BEGIN_MARKER"
+    # -f 時先移除舊區塊再重加（有界刪除，唔會掂 END 之後嘅內容）
+    strip_block "$INPUT_LUA" "$BEGIN_MARKER" "$END_MARKER" || \
+        warn "找不到結束標記，已刪至檔尾；請檢查 $INPUT_LUA"
 
     cat >> "$INPUT_LUA" << 'EOF'
 
@@ -89,7 +114,12 @@ EOF
     # Hyprland 會自動重新載入 Lua 設定；明確 reload 確保生效
     if command -v hyprctl >/dev/null 2>&1; then
         info "重新載入 Hyprland 設定..."
-        hyprctl reload &>/dev/null && info "Hyprland 設定已重新載入" || warn "無法重新載入 Hyprland，請重新登入"
+        if hyprctl reload &>/dev/null; then
+            info "Hyprland 設定已重新載入"
+        else
+            warn "無法重新載入 Hyprland，請重新登入"
+        fi
+        reload_and_verify
     fi
 }
 
@@ -107,13 +137,18 @@ reset_input() {
         return 0
     fi
 
-    strip_block "$INPUT_LUA" "$BEGIN_MARKER"
+    strip_block "$INPUT_LUA" "$BEGIN_MARKER" "$END_MARKER" || \
+        warn "找不到結束標記，已刪至檔尾；請檢查 $INPUT_LUA"
 
     if command -v hyprctl >/dev/null 2>&1; then
-        hyprctl reload &>/dev/null && info "Hyprland 設定已重新載入" || warn "無法重新載入 Hyprland"
+        if hyprctl reload &>/dev/null; then
+            info "Hyprland 設定已重新載入"
+        else
+            warn "無法重新載入 Hyprland"
+        fi
     fi
 
-    info "已還原（input.lua 回復 Omarchy v4 範本 + 預設）"
+    info "已還原（input.lua 回復安裝前內容，區塊後嘅設定原封不動）"
 }
 
 # 顯示狀態

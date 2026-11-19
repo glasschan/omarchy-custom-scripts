@@ -55,13 +55,15 @@ download_misans() {
     
     if ! curl -L -o "$zip_file" "$MISANS_URL"; then
         rm -rf "$temp_dir"
-        error "下載 MiSans 失敗"
+        warn "下載 MiSans 失敗"
+        return 1
     fi
 
     info "解壓 MiSans..."
     if ! unzip -q "$zip_file" -d "$temp_dir"; then
         rm -rf "$temp_dir"
-        error "解壓 MiSans 失敗"
+        warn "解壓 MiSans 失敗"
+        return 1
     fi
     
     # 尋找 MiSansVF.ttf
@@ -70,7 +72,8 @@ download_misans() {
     
     if [[ -z "$font_file" ]]; then
         rm -rf "$temp_dir"
-        error "找不到 MiSansVF.ttf"
+        warn "找不到 MiSansVF.ttf"
+        return 1
     fi
     
     mkdir -p "$FONT_DIR"
@@ -90,13 +93,15 @@ download_opposans() {
     
     if ! curl -L -o "$zip_file" "$OPPOSANS_URL"; then
         rm -rf "$temp_dir"
-        error "下載 OPPO Sans 失敗"
+        warn "下載 OPPO Sans 失敗"
+        return 1
     fi
 
     info "解壓 OPPO Sans..."
     if ! unzip -q "$zip_file" -d "$temp_dir"; then
         rm -rf "$temp_dir"
-        error "解壓 OPPO Sans 失敗"
+        warn "解壓 OPPO Sans 失敗"
+        return 1
     fi
     
     # 尋找 OPPO Sans 4.0.ttf
@@ -105,7 +110,8 @@ download_opposans() {
     
     if [[ -z "$font_file" ]]; then
         rm -rf "$temp_dir"
-        error "找不到 OPPO Sans 4.0.ttf"
+        warn "找不到 OPPO Sans 4.0.ttf"
+        return 1
     fi
     
     mkdir -p "$FONT_DIR"
@@ -162,6 +168,7 @@ snapshot_gtk_fonts() {
     mkdir -p "$STATE_DIR"
     : > "$snap"
     for pair in "${GTK_FONT_KEYS[@]}"; do
+        # shellcheck disable=SC2086  # $pair 刻意分開 schema 同 key 兩個參數
         printf '%s|%s\n' "$pair" "$(gsettings get $pair 2>/dev/null)" >> "$snap"
     done
     detail "已記錄 GTK 字體原狀"
@@ -303,6 +310,12 @@ XML
 setup_fontconfig() {
     info "檢查 Electron / Chromium 字體設定..."
 
+    # 字體下載失敗時 FONT_NAME 係空，冇 family 可指向，唔好寫一份空殼 fonts.conf
+    if [[ -z "$FONT_NAME" ]]; then
+        warn "字體未安裝，跳過 Electron / Chromium 字體設定"
+        return 0
+    fi
+
     local tmp
     tmp=$(mktemp)
     fontconfig_config > "$tmp"
@@ -344,6 +357,7 @@ reset_fonts() {
 
     info "還原 GTK 字體設定..."
     while IFS='|' read -r pair value; do
+        # shellcheck disable=SC2086  # $pair 刻意分開 schema 同 key 兩個參數
         [[ -n "$value" ]] && gsettings set $pair "$value"
     done < "$snap"
     info "GTK 字體已還原"
@@ -384,8 +398,7 @@ EOF
     
     detail "Chromium flags 檔案: $CHROMIUM_FLAGS"
     detail "內容:"
-    cat "$CHROMIUM_FLAGS" | sed 's/^/  /'
-    
+    sed 's/^/  /' "$CHROMIUM_FLAGS"    
     info "Chromium 設定完成"
 }
 

@@ -11,7 +11,7 @@ Branch mapping: `master` targets Omarchy v4 (Hyprland Lua configs, fcitx5 under 
 
 ## Ownership
 
-Root owns: `setup-all.sh` (orchestrator + interactive menu), all `setup-*.sh` feature scripts, `fix-*.sh` one-off fixes, `test-idempotency.sh`, `README.md`, `CLAUDE.md`. `lib/` is owned by its child doc below.
+Root owns: `setup-all.sh` (orchestrator + interactive menu), all `setup-*.sh` feature scripts, `fix-*.sh` one-off fixes, `test-idempotency.sh`, `lint.sh` + `.shellcheckrc` (the project lint entry point and its rules), `README.md`, `CLAUDE.md`. `lib/` is owned by its child doc below.
 
 `docs/agents/` holds engineering-skill config, not code: `issue-tracker.md` (work lives in GitHub issues for `glasschan/omarchy-custom-scripts`), `triage-labels.md` (five canonical labels), `domain.md` (single-context: `GLOSSARY.md` + `docs/adr/`, created lazily). Edit these files directly; skills read them, nothing else does.
 
@@ -23,7 +23,7 @@ Root owns: `setup-all.sh` (orchestrator + interactive menu), all `setup-*.sh` fe
 - Idempotency is mandatory: running `-i` twice must leave config files byte-identical (no duplicate lines, no stacking)
 - Scripts source `lib/common.sh` for logging/package helpers; never re-implement them locally. `error()` exits — nothing after an `error` call is reachable
 - Package install chain: `paru` → `yay` → `sudo pacman` (via `install_package`)
-- Hyprland v4 Lua configs (`input.lua`, `bindings.lua`) are modified by appending `-- BEGIN/END ... (setup-X.sh)` marker blocks — never rewrite the Omarchy template; `-u` truncates from the BEGIN marker to EOF via `lib/common.sh` `strip_block <file> <marker>` (single implementation; scripts keep only their path + marker string)
+- Hyprland v4 Lua configs (`input.lua`, `bindings.lua`) are modified by appending `-- BEGIN/END ... (setup-X.sh)` marker blocks — never rewrite the Omarchy template; `-u` removes only the BEGIN..END span via `lib/common.sh` `strip_block <file> <begin> <end>` (single implementation; scripts keep only their path + marker strings), so user content appended after the block survives; the END marker is optional and omitting it falls back to truncating from BEGIN to EOF
 - State snapshots: scripts that rewrite existing user files snapshot originals to `~/.local/state/omarchy-custom-scripts/<script>/` at `-i` (a `<name>.absent` marker when the file didn't exist; an existing snapshot is never overwritten); `-u` restores from the snapshot and removes the snapshot dir. Single implementation in `lib/common.sh`: `snapshot_original`/`restore_original`/`cleanup_state_dir <state_dir> <file> <name>` (consumers: `setup-input.sh`, `setup-fonts.sh`). `setup-fonts.sh` also writes the three GTK font key values to `gtk-fonts` in the same state dir. The file holds `gsettings get` output, and `-u` feeds it back to `gsettings set` rather than resetting to the schema default. `-i`/`-u` are a strict pair: no snapshot means `-i` made no change, so `-u` must leave the file untouched — never a second, ad-hoc restore mechanism (`.bak.*` files, `ls -1t` picking)
 - Never edit `/usr/share/omarchy/` or `~/.local/share/omarchy/` (Omarchy defaults); user configs live in `~/.config/...`; uninstall reverts only what the script changed
 - No interactive prompts during install except optional-feature confirmations
@@ -31,13 +31,15 @@ Root owns: `setup-all.sh` (orchestrator + interactive menu), all `setup-*.sh` fe
 ## Work Guidance
 
 - `CLAUDE.md` documents the hard-won bash pitfalls — read it before editing any script: escape `&` as `\&` in sed replacements, `\s` requires `grep -E`, use `--` separator when a grep pattern starts with `-` (Lua markers), restart fcitx5 via `systemctl --user restart omarchy-fcitx5.service`
+- Lint rules are code, not conversation: when a review or a failed run teaches something a check can catch, add it to `.shellcheckrc` (shellcheck-level) or a rule in `lint.sh` (structural), and keep both docs and the rule in the same change
 - New Hyprland config script: copy the marker-block pattern from `setup-macos-input.sh`, then validate with `hyprctl reload && hyprctl configerrors`
 - Testing: run `-i` twice and compare checksums, then `-u` to verify clean removal
 
 ## Verification
 
 - `./test-idempotency.sh` — runs a script's `-i` twice and asserts config files unchanged; accepts a script name to test just one. Script→config mapping lives in one place (`SCRIPT_CONFIG_MAP`); register a new script there with a single line and both usages pick it up; unregistered names exit non-zero
-- `.github/workflows/ci.yml` (GitHub PR checks) — `lint`: `bash -n` then `shellcheck --severity=warning` over `*.sh` and `lib/*.sh`; `idempotency`: the full suite in a sandboxed `HOME` with privileged binaries (`pacman`, `paru`, `yay`, `hyprctl`, `systemctl`, …) stubbed. Run both locally before pushing
+- `./lint.sh` — the single lint entry point: `bash -n` over `*.sh` and `lib/*.sh` (plus `archive/`), `shellcheck` with project rules from `.shellcheckrc` (errors/warnings plus `SC2162`/`SC2015`/`SC2086`/`SC2012` promoted to must-fix), then structural rules learned from real breakage: R1 every `strip_block` call passes an END marker, R2 no script uses `create_backup`, R3 every discoverable script is registered in `SCRIPT_CONFIG_MAP`, R4 every script's `usage()` exposes `-s, --status` and `-u, --uninstall`. `--strict` treats a missing `shellcheck` as failure (CI uses it); locally the tool may be absent and only warns
+- `.github/workflows/ci.yml` (GitHub PR checks) — `lint`: `./lint.sh --strict` (installs shellcheck first); `idempotency`: the full suite in a sandboxed `HOME` with privileged binaries (`pacman`, `paru`, `yay`, `hyprctl`, `systemctl`, …) stubbed. Run both locally before pushing
 - Manual: `./setup-all.sh -s` should correctly reflect installed state
 
 ## Core Contract

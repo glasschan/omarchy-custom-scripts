@@ -106,20 +106,14 @@ setup_hypr_keybindings() {
     info "附加自訂快捷鍵到 ~/.config/hypr/bindings.lua..."
 
     if is_installed; then
-        # 區塊已存在但缺 OCR 快捷鍵，而家語言包就緒：安全條件下重寫本區塊補上
+        # 區塊已存在但缺 OCR 快捷鍵，而家語言包就緒：重寫本區塊補上
         if (( OCR_READY )) && ! grep -qF -- "$OCR_BIND_MARKER" "$BINDINGS_LUA"; then
-            local last_line
-            last_line="$(tail -n 1 "$BINDINGS_LUA")"
-            if [[ "$last_line" == *"$END_MARKER"* ]]; then
-                info "OCR 語言包已就緒，補上 OCR 快捷鍵"
-                create_backup "$BINDINGS_LUA"
-                strip_block "$BINDINGS_LUA" "$BEGIN_MARKER"
-                append_block
-                info "快捷鍵已附加至 $BINDINGS_LUA"
-                info "Hyprland 會自動重新載入設定"
-            else
-                warn "bindings.lua 於本區塊之後有其他內容，無法自動補上 OCR 快捷鍵（請先 -u 再 -i）"
-            fi
+            info "OCR 語言包已就緒，補上 OCR 快捷鍵"
+            strip_block "$BINDINGS_LUA" "$BEGIN_MARKER" "$END_MARKER" || \
+                warn "找不到結束標記，已刪至檔尾；請檢查 $BINDINGS_LUA"
+            append_block
+            info "快捷鍵已附加至 $BINDINGS_LUA"
+            info "Hyprland 會自動重新載入設定"
             return
         fi
         info "自訂快捷鍵已存在，無需重複新增"
@@ -127,7 +121,6 @@ setup_hypr_keybindings() {
     fi
 
     mkdir -p "$(dirname "$BINDINGS_LUA")"
-    create_backup "$BINDINGS_LUA"
     append_block
 
     info "快捷鍵已附加至 $BINDINGS_LUA"
@@ -144,8 +137,9 @@ uninstall() {
     fi
 
     if is_installed; then
-        strip_block "$BINDINGS_LUA" "$BEGIN_MARKER"
-        info "已從 $BINDINGS_LUA 移除自訂快捷鍵"
+        strip_block "$BINDINGS_LUA" "$BEGIN_MARKER" "$END_MARKER" || \
+            warn "找不到結束標記，已刪至檔尾；請檢查 $BINDINGS_LUA"
+        info "已從 $BINDINGS_LUA 移除自訂快捷鍵（其餘內容保留）"
     else
         info "沒有找到已加入的自訂快捷鍵，跳過"
     fi

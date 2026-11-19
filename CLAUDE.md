@@ -56,6 +56,8 @@ Removed in v4 (kept on `v3` branch): `setup-keyboard-swap.sh`, `setup-gaming.sh`
 
 ### ⚠️ Critical Shell Scripting Pitfalls (Hard Learned)
 
+Lint rules live in `.shellcheckrc` + `lint.sh`; the structural ones (R1–R4) are listed under Testing. The bash-specific ones:
+
 **THESE WILL BREAK YOUR SCRIPTS IF YOU IGNORE THEM.**
 
 #### **sed Special Character - `&`**
@@ -150,9 +152,9 @@ There is no formal test suite. Test by:
 4. Using the idempotency test script:
 
 ```bash
-# Lint (same checks as CI)
-for f in *.sh lib/*.sh; do bash -n "$f"; done
-shellcheck --severity=warning *.sh lib/*.sh
+# Lint — project rules live in .shellcheckrc + lint.sh (same as CI)
+./lint.sh              # warns when shellcheck is absent
+./lint.sh --strict     # shellcheck missing = failure (CI uses this)
 
 # Test all scripts
 ./test-idempotency.sh
@@ -161,13 +163,22 @@ shellcheck --severity=warning *.sh lib/*.sh
 ./test-idempotency.sh setup-keybindings.sh
 ```
 
+Structural rules lint.sh enforces, each from a real breakage:
+
+| Rule | What it prevents |
+| ------ | ----------------- |
+| R1 every `strip_block` passes an END marker | `-u` truncating from BEGIN to EOF and eating user config appended after the block |
+| R2 no `create_backup` | `.bak.<timestamp>` litter that `-u` never reads; snapshots in `~/.local/state/` are the only backup |
+| R3 every discoverable script is in `SCRIPT_CONFIG_MAP` | a new script silently skipping the idempotency suite |
+| R4 every `usage()` lists `-s, --status` and `-u, --uninstall` | `setup-all.sh` silently skipping the script in status; missing uninstall path |
+
 ## Key Implementation Details
 
 ### Hyprland Config Files (v4 Lua)
 
 - User configs go in `~/.config/hypr/*.lua` — auto-loaded after Omarchy defaults: `monitors.lua`, `input.lua`, `bindings.lua`, `looknfeel.lua`, `autostart.lua` (plus `hyprland.lua` itself for anything else)
 - Lua API: `hl.config({...})` for variables, `o.bind("KEYS", "desc", "cmd")` for bindings, `hl.unbind`, `o.window(class, rules)` for window rules, `hl.env`, `hl.curve`/`hl.animation` for animations
-- Our scripts append `-- BEGIN/END ... (setup-X.sh)` marker blocks; uninstall truncates from the BEGIN line to EOF (blocks are always appended at end of file)
+- Our scripts append `-- BEGIN/END ... (setup-X.sh)` marker blocks; uninstall removes only the BEGIN..END span, so user content appended after the block survives (marker removal is `strip_block <file> <begin> <end>` in `lib/common.sh`)
 - Validate after any Lua change: `hyprctl reload && hyprctl configerrors` (empty output = clean); check bindings with `omarchy menu keybindings --print`
 - Never edit `/usr/share/omarchy/` or `~/.local/share/omarchy/` (Omarchy defaults; reading is fine)
 
@@ -204,6 +215,7 @@ Before merging any new script:
 - [ ] **Status check works**: `-s` correctly detects when installed
 - [ ] **Uninstall works**: `-u` completely removes all traces
 - [ ] **No duplicates**: Verify no duplicate lines in config after re-runs
+- [ ] **`./lint.sh --strict` passes** — includes the structural rules in the table below
 
 ## Important Files to Reference
 

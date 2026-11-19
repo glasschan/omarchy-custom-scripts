@@ -16,21 +16,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: bash -n（全部腳本語法）
-        run: |
-          set -euo pipefail
-          for f in *.sh lib/*.sh; do
-            echo "checking $f"
-            bash -n "$f"
-          done
-
-      - name: shellcheck（warning 級）
+      # 所有 lint 規則集中喺 .shellcheckrc 同 lint.sh，本機／CI 跑同一份。
+      - name: 安裝 shellcheck
         run: |
           set -euo pipefail
           sudo apt-get update -qq
           sudo apt-get install -y -qq shellcheck
           shellcheck --version | head -2
-          shellcheck --severity=warning --format=gcc *.sh lib/*.sh
+
+      - name: lint（語法 + shellcheck + 結構規則）
+        run: ./lint.sh --strict
 
   idempotency:
     name: idempotency（sandbox HOME）

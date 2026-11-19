@@ -105,6 +105,7 @@ setup_rime_scj() {
     rm -rf "$temp_dir"
 
     detail "已安裝檔案:"
+    # shellcheck disable=SC2012  # 檔名固定為 scj6.*，冇空格或特殊字元
     ls -la "$RIME_DIR"/scj6.* | sed 's/^/  /'
 
     info "rime-scj 安裝完成"
@@ -138,7 +139,7 @@ patch:
 EOF
 
     detail "scj6.custom.yaml 內容:"
-    cat "$RIME_DIR/scj6.custom.yaml" | sed 's/^/  /'
+    sed 's/^/  /' "$RIME_DIR/scj6.custom.yaml"
 
     info "scj6.custom.yaml 建立完成"
 }
@@ -184,7 +185,7 @@ patch:
 EOF
 
     detail "default.custom.yaml 內容:"
-    cat "$RIME_DIR/default.custom.yaml" | sed 's/^/  /'
+    sed 's/^/  /' "$RIME_DIR/default.custom.yaml"
 
     info "default.custom.yaml 建立完成"
 }

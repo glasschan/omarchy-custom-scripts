@@ -193,7 +193,7 @@ run_script() {
     fi
 
     info "執行 $script..."
-    bash "$SCRIPT_DIR/$script" $mode
+    bash "$SCRIPT_DIR/$script" "$mode"
 }
 
 # Install all scripts
@@ -282,7 +282,7 @@ interactive_mode() {
         show_menu
         local global_start=$((MENU_INSTALL_COUNT * 2 + 1))
         local choice
-        read -p "請選擇 [0-$((global_start + 2))]: " choice
+        read -rp "請選擇 [0-$((global_start + 2))]: " choice
 
         case "$choice" in
             0)
@@ -291,15 +291,15 @@ interactive_mode() {
                 ;;
             "$global_start")
                 install_all
-                read -p "按 Enter 繼續..."
+                read -rp "按 Enter 繼續..."
                 ;;
             $((global_start + 1)))
                 uninstall_all
-                read -p "按 Enter 繼續..."
+                read -rp "按 Enter 繼續..."
                 ;;
             $((global_start + 2)))
                 show_status
-                read -p "按 Enter 繼續..."
+                read -rp "按 Enter 繼續..."
                 ;;
             *)
                 # Find the matching option
@@ -307,7 +307,7 @@ interactive_mode() {
                     local mode_flag="-i"
                     [[ "$CHOICE_MODE" == "uninstall" ]] && mode_flag="-u"
                     run_script "$CHOICE_SCRIPT" "$mode_flag"
-                    read -p "按 Enter 繼續..."
+                    read -rp "按 Enter 繼續..."
                 else
                     error "無效選項: $choice"
                 fi
