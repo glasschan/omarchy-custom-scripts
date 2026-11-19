@@ -147,6 +147,20 @@ for f in $(active_scripts); do
 done
 (( R4 == 0 )) && pass "全部腳本都有 -s／-u"
 
+# R5 fcitx5 profile 唔准再加入 keyboard-* 輸入法。教訓：english 做獨立
+#    輸入法只係多咗一個切換位，英文應該經 rime 嘅 ascii_mode 打。
+section "R5 fcitx5 profile 唔含 keyboard-*"
+R5=0
+for f in $(active_scripts); do
+    grep -q "FCITX5_PROFILE" "$f" || continue
+    while IFS= read -r line; do
+        [[ "$line" =~ ^[0-9]+:[[:space:]]*# ]] && continue
+        fail "$f 會寫入 keyboard-* 輸入法: $line"
+        R5=$((R5 + 1))
+    done < <(grep -nE 'Name=keyboard(-|\b)' "$f")
+done
+(( R5 == 0 )) && pass "冇腳本寫入 keyboard-* 輸入法"
+
 # ========================================
 # 結果
 # ========================================

@@ -74,9 +74,14 @@
 - **朙月拼音 (luna_pinyin)**：同 scj6、倉頡五代一齊加入 rime 方案列表（F4 可切換）——唔打倉頡時嘅拼音後備
 - **啟動時預設英文模式**
   - 為什麼：多數時候在打程式或英文，預設英文減少切換次數
+- **fcitx5 profile 只留 rime（移除 english / `keyboard-us`）**
+  - 為什麼：english 做一個獨立輸入法只係多餘嘅切換位；英文照樣打，用 rime 內建 `ascii_mode`，右 Shift 即時切換
+  - 寫入 profile 後即時 `fcitx5-remote -r` 叫 fcitx5 重讀，唔使登出
+  - 你自己加嘅其他輸入法（例如 pinyin）會保留，只係移除 `keyboard-*`
 - **F4 切換輸入法方案**（scj6 ↔ 倉頡五代 ↔ 朙月拼音）
 - **右 Shift 切換中英文**
 - **自動部署**：執行後會自動重啟 fcitx5 並等待部署完成（最長 10 秒）
+- **`-c` 開啟圖形設定**：`./setup-input.sh -c`（或安裝完喺互動終端確認）打開 `fcitx5-configtool`，開喺背景，唔會卡住 script
 - **`-u` 完整還原**：`-i` 修改 `fcitx5/profile`、`config` 前先記錄原狀快照（存於 `~/.local/state/omarchy-custom-scripts/setup-input/`），`-u` 還原至 byte-identical；檔案原本不存在則整個移除，不留空殼
 
 **v4 注意事項**：
@@ -86,7 +91,7 @@
 - 腳本會檢查並修復 fcitx5 `profile`（v4 升級後 profile 曾損毀導致無法切換中文）
 - 切換輸入法主要 trigger：`Ctrl+Space`（注意 `Super+Space` 在 v4 被 Omarchy menu 佔用）
 
-**直接寫入 fcitx5 profile 設定檔**：不透過 GUI 精靈，避免卡住 script
+**直接寫入 fcitx5 profile 設定檔**：不透過 GUI 精靈，避免卡住 script；要改就用 `./setup-input.sh -c` 自己開 `fcitx5-configtool`
 
 ### setup-macos-input.sh — 輸入體驗
 
@@ -240,6 +245,7 @@ main "$@"
 | R2 唔准用 `create_backup` | 每次 `-i` 多一個 `.bak.<timestamp>`，而 `-u` 根本唔讀佢；備份只准 `~/.local/state/` 嘅 snapshot |
 | R3 可發現腳本都要登記 `SCRIPT_CONFIG_MAP` | 新腳本漏登記，冪等性測試照樣全綠，等於冇測 |
 | R4 `usage()` 要有 `-s, --status` 同 `-u, --uninstall` | `setup-all.sh` 靠 `-h` 輸出判斷狀態支援，漏咗會被靜靜雞跳過 |
+| R5 唔准寫入 `keyboard-*` 輸入法 | english 做獨立輸入法多咗一個切換位；英文應經 rime `ascii_mode` 打 |
 
 ### 冪等性測試 (`test-idempotency.sh`)
 

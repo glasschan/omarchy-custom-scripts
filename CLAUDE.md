@@ -171,6 +171,7 @@ Structural rules lint.sh enforces, each from a real breakage:
 | R2 no `create_backup` | `.bak.<timestamp>` litter that `-u` never reads; snapshots in `~/.local/state/` are the only backup |
 | R3 every discoverable script is in `SCRIPT_CONFIG_MAP` | a new script silently skipping the idempotency suite |
 | R4 every `usage()` lists `-s, --status` and `-u, --uninstall` | `setup-all.sh` silently skipping the script in status; missing uninstall path |
+| R5 no script writes a `keyboard-*` input method | English as a separate IM just adds a switching slot; it belongs on rime's `ascii_mode` |
 
 ## Key Implementation Details
 
@@ -184,7 +185,9 @@ Structural rules lint.sh enforces, each from a real breakage:
 
 ### Input Method (fcitx5-rime)
 
-- Direct file manipulation (no `fcitx5-configtool`) because GUI tools block scripts
+- Direct file manipulation during `-i` (no `fcitx5-configtool`) because GUI tools block scripts; `-c` / post-install confirmation opens it detached with `nohup ... &`
+- The written profile keeps only `rime` (no `keyboard-us`): English goes through rime's `ascii_mode`, Right Shift toggles. User-added IMs other than `keyboard-*` are preserved, and item indexes are rewritten contiguously
+- fcitx5 rewrites `profile` at runtime (comments, ordering), so `check_fcitx5_profile` compares semantics (items and `DefaultIM`), not bytes; `fcitx5-remote -r` reloads it after writing
 - Rime schema files go in `~/.local/share/fcitx5/rime/`
 - v4 runs fcitx5 under systemd: `systemctl --user restart omarchy-fcitx5.service` (never `killall` + manual start)
 - IM env vars (`QT_IM_MODULE` etc.) are Omarchy v4 defaults — scripts don't set them

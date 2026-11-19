@@ -197,56 +197,102 @@ remove_default_custom() {
     info "default.custom.yaml 已移除"
 }
 
-# 檢查 fcitx5 profile 是否含 rime（v4 升級後 profile 曾損毀導致無法切換中文）
-check_fcitx5_profile() {
-    if [[ -f "$FCITX5_PROFILE" ]]; then
-        grep -q "Name=rime" "$FCITX5_PROFILE" && \
-        grep -q "DefaultIM=rime" "$FCITX5_PROFILE"
-    else
-        return 1
-    fi
+# 列出 profile 入面 [Groups/0/Items/*] 嘅輸入法名（忽略 group 名）
+profile_items() {
+    awk '
+        /^\[/ { section = $0; next }
+        section ~ /^\[Groups\/0\/Items/ && /^Name=/ {
+            sub(/^Name=/, ""); print
+        }
+    ' "$FCITX5_PROFILE"
 }
 
-# 修復 fcitx5 profile（寫入 canonical 結構；fcitx5 之後可能自行改寫，屬正常）
+# 檢查 fcitx5 profile：DefaultIM=rime、有 rime、冇 keyboard-*（即係 english 已拎走）。
+# fcitx5 執行時會自行重寫檔案（補註解、改次序），所以用語意比對而唔係 byte 比對。
+check_fcitx5_profile() {
+    [[ -f "$FCITX5_PROFILE" ]] || return 1
+    grep -qxF -- "DefaultIM=rime" "$FCITX5_PROFILE" || return 1
+    local items
+    items=$(profile_items)
+    printf '%s\n' "$items" | grep -qxF -- "rime" || return 1
+    ! printf '%s\n' "$items" | grep -qE '^keyboard(-|$)'
+}
+
+# 寫入 rime-only profile：移除 keyboard-us，保留用戶自己加嘅其他輸入法。
 setup_fcitx5_profile() {
     info "檢查 fcitx5 profile..."
 
     if check_fcitx5_profile; then
-        info "fcitx5 profile 結構正確，跳過"
+        info "fcitx5 profile 已設定（冇 keyboard-us），跳過"
         return 0
     fi
 
-    info "修復 fcitx5 profile（keyboard-us + rime）..."
+    info "設定 fcitx5 profile（移除 keyboard-us）..."
     mkdir -p "$(dirname "$FCITX5_PROFILE")"
     snapshot_original "$STATE_DIR" "$FCITX5_PROFILE" profile
 
-    cat > "$FCITX5_PROFILE" << 'EOF'
-[Groups/0]
-# Group Name
-Name=Default
-# Layout
-Default Layout=us
-# Default Input Method
-DefaultIM=rime
+    # 抽出目前非 keyboard-* 嘅輸入法（連 Layout），rime 排第一
+    local -a names=() layouts=()
+    local name layout
+    while IFS='|' read -r name layout; do
+        [[ -z "$name" ]] && continue
+        [[ "$name" == rime ]] && continue
+        [[ "$name" =~ ^keyboard ]] && continue
+        names+=("$name")
+        layouts+=("$layout")
+    done < <(awk '
+        function flush() {
+            if (name != "") { print name "|" layout; name = ""; layout = "" }
+        }
+        /^\[/ { flush(); section = $0; next }
+        section ~ /^\[Groups\/0\/Items/ {
+            if (/^Name=/) { sub(/^Name=/, ""); name = $0 }
+            else if (/^Layout=/) { sub(/^Layout=/, ""); layout = $0 }
+        }
+        END { flush() }
+    ' "$FCITX5_PROFILE")
 
-[Groups/0/Items/0]
-# Name
-Name=keyboard-us
-# Layout
-Layout=
+    {
+        echo "[Groups/0]"
+        echo "# Group Name"
+        echo "Name=Default"
+        echo "# Layout"
+        echo "Default Layout=us"
+        echo "# Default Input Method"
+        echo "DefaultIM=rime"
+        echo ""
+        echo "[Groups/0/Items/0]"
+        echo "# Name"
+        echo "Name=rime"
+        echo "# Layout"
+        echo "Layout="
+        local i
+        for i in "${!names[@]}"; do
+            echo ""
+            echo "[Groups/0/Items/$((i + 1))]"
+            echo "# Name"
+            echo "Name=${names[i]}"
+            echo "# Layout"
+            echo "Layout=${layouts[i]}"
+        done
+        echo ""
+        echo "[GroupOrder]"
+        echo "0=Default"
+    } > "$FCITX5_PROFILE"
 
-[Groups/0/Items/1]
-# Name
-Name=rime
-# Layout
-Layout=
+    detail "已移除 keyboard-us；英文照樣經 rime 嘅 ascii_mode 打（右 Shift 切换）"
 
-[GroupOrder]
-0=Default
-EOF
-
-    info "fcitx5 profile 已修復"
+    # 叫 fcitx5 即刻重讀 profile（實測 fcitx5-remote -r 有效；dbus 只作後備）
+    if command -v fcitx5-remote >/dev/null 2>&1 && fcitx5-remote -r 2>/dev/null; then
+        detail "fcitx5 已重讀設定"
+    elif command -v dbus-send >/dev/null 2>&1; then
+        dbus-send --session --dest=org.fcitx.Fcitx5 --type=method_call \
+            /controller org.fcitx.Fcitx.Controller1.SetConfig \
+            string:fcitx://config/global >/dev/null 2>&1 || true
+    fi
 }
+
+
 
 # 重新啟動 fcitx5（v4 用 systemd service；舊版 fallback 到手動啟動）
 restart_fcitx5() {
@@ -338,9 +384,11 @@ show_status() {
     fi
 
     if check_fcitx5_profile; then
-        echo -e "  ${GREEN}✓${NC} fcitx5 profile 已設定 rime"
+        echo -e "  ${GREEN}✓${NC} fcitx5 profile 已移除 keyboard-us（英文經 rime ascii_mode）"
     else
-        echo -e "  ${RED}✗${NC} fcitx5 profile 缺少 rime"
+        local items
+        items=$(profile_items 2>/dev/null | paste -sd', ' -)
+        echo -e "  ${YELLOW}!${NC} fcitx5 profile 未符合（目前: ${items:-無}），重跑 -i 設定"
     fi
 
     if [[ -d "$STATE_DIR" ]]; then
@@ -399,6 +447,9 @@ install() {
 
     info ""
     info "設定完成！"
+    info "輸入法："
+    info "  - profile 已移除 keyboard-us（english 唔再佔一個輸入法位）"
+    info "  - 英文照樣打：rime 內建 ascii_mode，右 Shift 即時切換"
     info "快捷鍵："
     info "  - F4: 切換輸入法方案"
     info "  - 右 Shift: 切換中英文"
@@ -406,6 +457,15 @@ install() {
     info "  - 快速倉頡 (scj6): 已設定為預設，啟動時為英文模式"
     info "  - 倉頡五代 (cangjie5): 已加入方案列表"
     info "  - 朙月拼音 (luna_pinyin): 已加入方案列表"
+    info ""
+    info "想用圖形介面改：fcitx5-configtool（或 $SCRIPT_NAME -c）"
+
+    # 只喺互動終端問，install_all／CI 唔會彈窗卡住
+    if [[ -t 0 ]] && command -v fcitx5-configtool >/dev/null 2>&1; then
+        if confirm "現在打開 fcitx5 設定工具？"; then
+            open_config_tool
+        fi
+    fi
 }
 
 # 解除安裝模式
@@ -435,11 +495,28 @@ usage() {
     echo "  -i, --install     安裝/設定輸入法 (預設)"
     echo "  -u, --uninstall   還原輸入法設定（含 fcitx5 profile/config 原狀）"
     echo "  -s, --status      顯示目前狀態"
+    echo "  -c, --config      開啟 fcitx5 圖形設定工具"
     echo "  -h, --help        顯示此說明"
     echo ""
     echo "Examples:"
     echo "  $SCRIPT_NAME              # 設定輸入法"
     echo "  $SCRIPT_NAME -s           # 顯示狀態"
+    echo "  $SCRIPT_NAME -c           # 開啟 fcitx5-configtool"
+}
+
+# 開啟 fcitx5 圖形設定工具。
+# 開喺背景，唔用 exec：install() 之後仍然要正常收尾，setup-all 亦唔會卡住等個窗閂。
+open_config_tool() {
+    local tool
+    for tool in fcitx5-configtool fcitx5-config-qt; do
+        if command -v "$tool" >/dev/null 2>&1; then
+            info "開啟 $tool..."
+            nohup "$tool" >/dev/null 2>&1 &
+            disown 2>/dev/null || true
+            return 0
+        fi
+    done
+    error "找不到 fcitx5 設定工具，請先安裝 fcitx5-config-qt"
 }
 
 # 主程式
@@ -450,6 +527,9 @@ main() {
             ;;
         -s|--status)
             show_status
+            ;;
+        -c|--config)
+            open_config_tool
             ;;
         -h|--help)
             usage

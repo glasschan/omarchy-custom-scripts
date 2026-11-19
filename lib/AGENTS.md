@@ -24,7 +24,7 @@ Shared helpers sourced by every script in the repo root. Eliminates code duplica
 
 ## Verification
 
-- No standalone framework; helpers are exercised by `test-idempotency.sh` at the repo root and by structural rules in `./lint.sh` (R1 checks every `strip_block` call passes an END marker; R2 forbids `create_backup`)
+- No standalone framework; helpers are exercised by `test-idempotency.sh` at the repo root and by structural rules in `./lint.sh` (R1 checks every `strip_block` call passes an END marker; R2 forbids `create_backup`; R5 forbids writing `keyboard-*` into the fcitx5 profile)
 
 ## Child DOX Index
 
