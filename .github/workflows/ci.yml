@@ -40,7 +40,9 @@ jobs:
           set -euo pipefail
           for b in sudo pacman paru yay hyprctl systemctl fcitx5 fcitx5-remote dbus-send \
                    killall pgrep wl-copy notify-send \
-                   fc-cache fc-match gsettings; do
+                   fc-cache fc-match gsettings \
+                   omarchy-capture-screenshot omarchy-capture-screenrecording \
+                   omarchy-capture-text omarchy-shell hyprpicker; do
             printf '#!/bin/bash\nexit 0\n' | sudo tee "/usr/local/bin/$b" >/dev/null
             sudo chmod +x "/usr/local/bin/$b"
           done
