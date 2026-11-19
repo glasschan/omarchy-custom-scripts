@@ -85,14 +85,16 @@ fi
 # ========================================
 
 # R1 marker 區塊要成對。教訓：-u 只靠 BEGIN marker 斬到檔尾，會食咗
-#    用戶喺區塊之後加嘅設定。凡是 strip_block 都要傳 END marker。
+#    用戶喺區塊之後加嘅設定。凡是 strip_block 都要傳 END marker，
+#    所以 2 個參數嘅呼叫一律失敗（就算個檔案冇定義 END_MARKER）。
 section "R1 marker 區塊有界刪除"
 R1=0
 for f in $(active_scripts); do
-    grep -q "END_MARKER=" "$f" || continue
     while IFS= read -r line; do
         # 註解行唔算
         [[ "$line" =~ ^[0-9]+:[[:space:]]*# ]] && continue
+        # 只認真正嘅呼叫；定義行／用法註解唔算
+        [[ "$line" =~ strip_block[[:space:]] ]] || continue
         if [[ "$line" == *"END_MARKER"* ]]; then
             continue
         fi
@@ -115,15 +117,17 @@ done
 (( R2 == 0 )) && pass "冇腳本用 create_backup"
 
 # R3 冪等性測試要覆蓋所有會被 menu 發現嘅腳本。教訓：新腳本漏咗登記
-#    SCRIPT_CONFIG_MAP，測試仍然全綠，等於冇測。
+#    SCRIPT_CONFIG_MAP，測試仍然全綠，等於冇測。Hidden 判斷要同
+#    setup-all.sh is_script_hidden 一致（yes/true/1，大小寫不拘）。
 section "R3 冪等性測試覆蓋"
 missing=0
-map_scripts=$(sed -nE 's/^[[:space:]]*"([^|]+)\|.*/\1/p' test-idempotency.sh)
+map_scripts=$(sed -nE 's/^[[:space:]]*"(setup-[^|"]+|fix-[^|"]+)\|.*/\1/p' test-idempotency.sh)
 for f in $(active_scripts); do
     [[ "$f" == "setup-all.sh" ]] && continue
     grep -q "^# Category:" "$f" || continue
     grep -q "^# Description:" "$f" || continue
-    grep -q "^# Hidden: yes" "$f" && continue
+    hidden=$(sed -nE 's/^# Hidden:[[:space:]]*(.*)$/\1/p' "$f" | head -1)
+    [[ "$hidden" =~ ^[Yy]es$ || "$hidden" =~ ^[Tt]rue$ || "$hidden" == "1" ]] && continue
     if ! printf '%s\n' "$map_scripts" | grep -qxF -- "$f"; then
         fail "$f 未登記喺 SCRIPT_CONFIG_MAP"
         missing=$((missing + 1))
@@ -131,21 +135,21 @@ for f in $(active_scripts); do
 done
 (( missing == 0 )) && pass "SCRIPT_CONFIG_MAP 覆蓋所有可發現腳本"
 
-# R4 每個腳本都要有 -s 狀態同 -u 還原。教訓：setup-all.sh 靠 -h 入面
-#    嘅 "-s, --status" 決定要唔要跑狀態，漏咗會被靜靜雞跳過。
+# R4 每個腳本都要有 -i/-u/-s/-h 四個選項。教訓：setup-all.sh 靠 -h 入面
+#    嘅 "-s, --status" 決定要唔要跑狀態，漏咗會被靜靜雞跳過；
+#    -i/-u 係每個 setup/fix 腳本嘅基本安裝／還原介面。
 section "R4 標準 CLI 介面"
 R4=0
 for f in $(active_scripts); do
-    if ! bash "$f" -h 2>/dev/null | grep -Eq -- '^[[:space:]]*-s([,|[:space:]]|--status)'; then
-        fail "$f 嘅 usage() 冇 \"-s, --status\" 行"
-        R4=$((R4 + 1))
-    fi
-    if ! bash "$f" -h 2>/dev/null | grep -Eq -- '^[[:space:]]*-u([,|[:space:]]|--uninstall)'; then
-        fail "$f 嘅 usage() 冇 \"-u, --uninstall\" 行"
-        R4=$((R4 + 1))
-    fi
+    usage_text=$(bash "$f" -h 2>/dev/null || true)
+    for opt in "-i, --install" "-u, --uninstall" "-s, --status" "-h, --help"; do
+        if ! printf '%s\n' "$usage_text" | grep -qF -- "$opt"; then
+            fail "$f 嘅 usage() 冇 \"$opt\" 行"
+            R4=$((R4 + 1))
+        fi
+    done
 done
-(( R4 == 0 )) && pass "全部腳本都有 -s／-u"
+(( R4 == 0 )) && pass "全部腳本都有 -i／-u／-s／-h"
 
 # R5 fcitx5 profile 唔准再加入 keyboard-* 輸入法。教訓：english 做獨立
 #    輸入法只係多咗一個切換位，英文應該經 rime 嘅 ascii_mode 打。
@@ -160,6 +164,20 @@ for f in $(active_scripts); do
     done < <(grep -nE 'Name=keyboard(-|\b)' "$f")
 done
 (( R5 == 0 )) && pass "冇腳本寫入 keyboard-* 輸入法"
+
+# R6 SCRIPT_CONFIG_MAP 唔可以有過期登記。教訓：腳本歸檔到 archive/ 之後
+#    仍然留喺 map，會令 test-idempotency.sh 搵唔到檔案而失敗，或者
+#    靜靜雞測試緊一個唔存在嘅腳本。每個登記嘅腳本都必須存在於 repo 根目錄。
+section "R6 SCRIPT_CONFIG_MAP 冇過期登記"
+R6=0
+while IFS= read -r script; do
+    [[ -z "$script" ]] && continue
+    if [[ ! -f "$script" ]]; then
+        fail "SCRIPT_CONFIG_MAP 登記咗唔存在嘅腳本: $script"
+        R6=$((R6 + 1))
+    fi
+done < <(sed -nE 's/^[[:space:]]*"(setup-[^|"]+|fix-[^|"]+)\|.*/\1/p' test-idempotency.sh)
+(( R6 == 0 )) && pass "SCRIPT_CONFIG_MAP 全部指向現存腳本"
 
 # ========================================
 # 結果

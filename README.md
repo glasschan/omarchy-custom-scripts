@@ -2,7 +2,7 @@
 
 > 個人 Hyprland + Omarchy 環境自訂腳本
 
-這組腳本用於自動化設定我的個人 Linux 環境。基於 [Omarchy](https://omarchy.org/) + Hyprland，主題是「把 macOS 的操作手感移植到 Arch Linux」。
+這組腳本用於自動化設定我的個人 Linux 環境。基於 [Omarchy](https://omarchy.org/) + Hyprland，目標是重灌後快速恢復順手的鍵盤、觸控板同輸入法手感。
 
 **分支對應 Omarchy 版本：**
 
@@ -20,11 +20,11 @@
 
 | 分類 | 腳本 | 功能 |
 | ------ | ------ | ------ |
-| **系統設定** | `setup-fonts.sh` | 字體 + GTK/Electron/Chromium 設定 |
+| **系統設定** | `setup-fonts.sh` | 字體 + GTK/fontconfig 設定 |
+| **系統設定** | `setup-chromium-scale.sh` | Chromium / Electron scale factor（1） |
 | **輸入法** | `setup-input.sh` | fcitx5-rime + 快速倉頡 |
-| **鍵盤** | `setup-macos-input.sh` | 鍵盤/觸控板 macOS 行為 |
+| **鍵盤** | `setup-macos-input.sh` | 鍵盤 / 觸控板微調 |
 | **快捷鍵** | `setup-keybindings.sh` | 截圖、錄影、OCR、剪貼簿快捷鍵 |
-| **相容包裝** | `setup-rime-scj.sh` | [舊版] 字體 + 輸入法組合（已拆分） |
 
 > v3 專屬腳本 `setup-keyboard-swap.sh` 與 `setup-gaming.sh` 已在 v4 移除（Hyprland 改用 Lua 設定後不再適用），保留在 `v3` branch。
 
@@ -44,24 +44,34 @@
 ./setup-fonts.sh -i     # 安裝
 ./setup-fonts.sh -u     # 還原
 ./setup-fonts.sh -s     # 檢查狀態
+./setup-chromium-scale.sh -i   # Chromium scale
 ```
+
+`setup-all.sh -i` / `-u` 會逐個腳本執行，中途有腳本失敗都唔會停；跑完會列出「N 個腳本失敗」並以非零結束碼收場，唔會當成功。由互動選單觸發就只會報告錯誤，然後返去選單。
 
 ## 各腳本說明
 
-### setup-fonts.sh — 字體與顯示
+### setup-fonts.sh — 字體
 
-**目標：** 統一顯示環境，避免 HiDPI UI 過大的問題
+**目標：** 統一 GTK 同 Electron / Chromium 嘅 UI 字體
 
-- **GTK 字體**：OPPO Sans 4.0 9（family 名要跟 `fc-list`：OPPO Sans 係 `OPPO Sans 4.0`，MiSans 係 `MiSans VF`；可用 `FONT_NAME="MiSans VF" ./setup-fonts.sh -i` 換返）
+- **GTK 字體**：預設 MiSans VF 10（family 名要跟 `fc-list`：MiSans 係 `MiSans VF`，OPPO Sans 係 `OPPO Sans 4.0`）
   - 為什麼：支援 CJK、個人覺得耐看
+- **可選 family / 大小**：喺 TTY 互動執行 `-i` 會問 family（1 MiSans VF、2 OPPO Sans 4.0、3 自行輸入）同大小（6–20，預設 10）；非互動（`install_all`、CI、pipe）一律用預設唔會停低問。`FONT_NAME` / `FONT_SIZE` 環境變數會覆寫並跳過對應嘅提問
 - **字體自動下載**：`-i` 時 `fc-list` 搵唔到字體就自動下載到 `~/.local/share/fonts/` 並更新字體快取；下載嘅係 MiSans 同 OPPO Sans 兩隻（`-s` 會獨立顯示兩者安裝狀態）
-- **`-d, --download`**：只下載字體（MiSans + OPPO Sans），唔套用 GTK / Chromium 設定
+- **`-d, --download`**：只下載字體（MiSans + OPPO Sans），唔套用 GTK / fontconfig 設定
 - **Electron / Chromium 字體**：寫 `~/.config/fontconfig/fonts.conf`，將 `sans-serif`、`system-ui`、`-apple-system`、`BlinkMacSystemFont` 等 generic family 指去同一個 `$FONT_NAME`（`monospace` 唔郁，terminal 保留 JetBrainsMono Nerd Font）
   - 為什麼：Electron / Chromium 唔讀 GTK 設定，只問 fontconfig；Omarchy 預設 `50-omarchy.conf` 會將 `sans-serif` 指派去 Liberation Sans，所以要用 `Liberation Sans` 嗰條規則先真正蓋過
   - 附 CJK（Noto CJK）+ Nerd Font + Noto Color Emoji fallback；`-u` 會還原原狀（原本冇檔就刪走）
-- **Chromium scale**：設定為 1。`~/.config/chromium-flags.conf` 只會改或者 append 一條 `--force-device-scale-factor`，其他 flags 逐字保留，唔會留低 `.bak`
+- **`-u` 還原**：由 `-i` 時嘅快照還原 GTK 三個字體 key 原值同 `fonts.conf`，並移除本腳本複製入 `~/.local/share/fonts/` 嘅字體檔（只刪安裝前唔存在、記錄喺 `installed-fonts` 嘅檔案；用家自己嘅字體檔唔會掂，字體資料夾仲有其他檔案就保留）。原本冇嘅檔案會刪走。`-i` 冇改過嘅嘢，`-u` 唔會掂
+
+### setup-chromium-scale.sh — Chromium scale
+
+**目標：** 避免 HiDPI UI 過大
+
+- **Chromium / Electron scale**：設定為 1。`~/.config/chromium-flags.conf` 只會改或者 append 一條 `--force-device-scale-factor=1`：有舊值（例如 1.25）就地取代，其他 flags 逐字保留；檔案唔存在就寫入預設 flag 區塊
   - 為什麼：Hyprland 已經處理 HiDPI，Chromium 再縮放會造成 UI 過大
-- **`-u` 還原**：`-u` 由 `-i` 時嘅快照還原 GTK 三個字體 key 原值、`fonts.conf` 同 `chromium-flags.conf`。原本冇嘅檔案會刪走。`-i` 冇改過嘅嘢，`-u` 唔會掂
+- **`-u` 還原**：由 `-i` 時嘅快照還原安裝前嘅 `chromium-flags.conf`；原本冇檔就刪走
 
 ### setup-input.sh — 輸入法
 
@@ -82,7 +92,8 @@
 - **右 Shift 切換中英文**
 - **自動部署**：執行後會自動重啟 fcitx5 並等待部署完成（最長 10 秒）
 - **`-c` 開啟圖形設定**：`./setup-input.sh -c`（或安裝完喺互動終端確認）打開 `fcitx5-configtool`，開喺背景，唔會卡住 script
-- **`-u` 完整還原**：`-i` 修改 `fcitx5/profile`、`config` 前先記錄原狀快照（存於 `~/.local/state/omarchy-custom-scripts/setup-input/`），`-u` 還原至 byte-identical；檔案原本不存在則整個移除，不留空殼
+- **`-u` 完整還原**：`-i` 修改 `fcitx5/profile`、`config` 同自訂 rime yaml（`scj6.custom.yaml`、`default.custom.yaml`）前先記錄原狀快照（存於 `~/.local/state/omarchy-custom-scripts/setup-input/`），`-u` 還原至 byte-identical；檔案原本不存在則整個移除，不留空殼
+- **`-u` 只刪自己裝嘅 rime 檔**：`-i` 複製入去嘅 rime yaml 會逐個記錄，`-u` 只按記錄移除；`scj6.userdb`、`*.userdb`、`scj6.dict.yaml`、`build/`、`sync/` 等用戶資料一律唔會掂
 
 **v4 注意事項**：
 
@@ -93,25 +104,25 @@
 
 **直接寫入 fcitx5 profile 設定檔**：不透過 GUI 精靈，避免卡住 script；要改就用 `./setup-input.sh -c` 自己開 `fcitx5-configtool`
 
-### setup-macos-input.sh — 輸入體驗
+### setup-macos-input.sh — 鍵盤 / 觸控板
 
-**目標：** 把 macOS 的鍵盤/觸控板操作手感移植到 Hyprland
+**目標：** 微調鍵盤重複速度與觸控板手感，並保住 rime 的右 Shift 切換
 
 | 設定 | 值 | 為什麼 |
 | ------ | ----- | -------- |
 | kb_options | `compose:caps` | 還原 v3 值——v4 預設加咗 `shift:both_capslock_cancel`，會令 rime「單獨撳右 Shift 切中英文」失效 |
-| repeat_rate | 60 | Arch 預設 25 太慢，macOS 約 60 |
+| repeat_rate | 60 | Arch 預設 25 太慢，60 較順手 |
 | repeat_delay | 200ms | 比預設 660ms 短，更快開始重複 |
-| natural_scroll | true | macOS muscle memory |
-| tap_to_click | true | macOS trackpad 習慣 |
+| natural_scroll | true | 自然捲動 |
+| tap_to_click | true | 輕觸即點擊 |
 | numlock_by_default | true | 登入即 NumLock on，數字鍵盤直接用 |
-| clickfinger_behavior | true | 觸控板點擊用 clickfinger（一指=左鍵、二指=右鍵），macOS 冇實體左右鍵 |
-| disable_while_typing | true | 打字時暫停觸控板，防 palm 誤觸（macOS 預設行為） |
-| scroll_factor | 0.7 | 滾輪速度更快 |
+| clickfinger_behavior | true | 一指左鍵、二指右鍵，唔靠觸控板角落 |
+| disable_while_typing | true | 打字時暫停觸控板，防手掌誤觸 |
+| scroll_factor | 0.7 | 捲動速度較快 |
 
-**`-f, --force`**：強制重新套用（跳過重複檢查，重寫 marker 區塊，用於手動改壞之後還原）。
+**`-f, --force`**：強制重新套用（跳過重複檢查，重寫 marker 區塊，用於手動改壞之後還原）。`-i` 同 `-f` 之後都會 `hyprctl reload` 並檢查 `hyprctl configerrors`，有錯會列出來。
 
-**v4 實作方式**：以 marker 區塊附加到 `~/.config/hypr/input.lua`（`hl.config({ input = ... })`）；terminal 捲動規則 v4 預設已含（Alacritty/kitty/foot 1.5、ghostty 0.2），無需重複。
+**v4 實作方式**：以 marker 區塊附加到 `~/.config/hypr/input.lua`（`hl.config({ input = ... })`）；terminal 捲動規則 v4 預設已含（Alacritty/kitty/foot 1.5、ghostty 0.2），無需重複。`-i` 會印出實際生效嘅 `hyprctl getoption` 值，唔使靠估。
 
 ### setup-keybindings.sh — 快捷鍵設定
 
@@ -128,8 +139,9 @@
 | `Alt+Shift+O` | OCR 文字辨識（中英混合） |
 | `Ctrl+\`` | 開啟剪貼簿管理員 |
 
-**v4 實作方式**：以 marker 區塊附加到 `~/.config/hypr/bindings.lua`（`o.bind()` Lua API）。
+**v4 實作方式**：以 marker 區塊附加到 `~/.config/hypr/bindings.lua`（`o.bind()` Lua API）。`-i`、`-f`、`-u` 之後都會 `hyprctl reload` 並檢查 `hyprctl configerrors`。
 
+- **`-f, --force`**：強制移除舊 marker 區塊再重寫（用於腳本更新後重新套用）
 - **剪貼簿管理員**：Ctrl+\` 開啟 Omarchy v4 內建剪貼簿（`omarchy-shell shell toggle omarchy.clipboard`），另有預設快捷鍵 `Super+Ctrl+V`。v3 的 walker + elephant 自動貼上組合已淘汰
 - **OCR**：使用 `omarchy-capture-text`（v3 的 `-extraction` 後綴指令已改名），以 `OMARCHY_OCR_LANGS=eng+chi_tra` 支援中英混合
 
@@ -149,17 +161,17 @@
 ├── AGENTS.md                        # DOX 根文件：專案契約與索引
 ├── setup-all.sh                     # 主程式，自動探索所有腳本 + 互動選單
 ├── setup-fonts.sh                   # 字體設定
+├── setup-chromium-scale.sh          # Chromium / Electron scale factor
 ├── setup-input.sh                   # 輸入法設定
 ├── setup-macos-input.sh             # 鍵盤/觸控板設定
 ├── setup-keybindings.sh             # 截圖/錄影/OCR/剪貼簿快捷鍵
 ├── test-idempotency.sh              # 冪等性測試工具
 ├── lint.sh                          # Lint 入口（規則見 .shellcheckrc）
 ├── .shellcheckrc                    # shellcheck 專案規則
-├── setup-rime-scj.sh                # [舊版] 相容包裝
 └── archive/                         # 已退役腳本，留在 repo 但唔會出現在選單
 ```
 
-`setup-all.sh` 只掃根目錄嘅 `setup-*.sh` 同 `fix-*.sh`，所以退役腳本搬入 `archive/` 就自動消失，檔案本身冇刪。
+`setup-all.sh` 只掃根目錄嘅 `setup-*.sh` 同 `fix-*.sh`，所以退役腳本搬入 `archive/` 就自動消失，檔案本身冇刪。`archive/` 有 `lib -> ../lib` symlink，舊腳本照樣 `source` 到共用函式庫，即係仍然可以手動執行。
 
 ## 開發者說明
 
@@ -174,7 +186,7 @@
 | `-s`, `--status` | 顯示目前狀態 |
 | `-h`, `--help` | 顯示說明 |
 
-個別腳本另有額外參數：`setup-fonts.sh` 嘅 `-d, --download`（只下載字體）、`setup-macos-input.sh` 嘅 `-f, --force`（強制重新套用）、`setup-all.sh` 嘅 `-m, --menu`（互動選單）。
+個別腳本另有額外參數：`setup-fonts.sh` 嘅 `-d, --download`（只下載字體）、`setup-input.sh` 嘅 `-c, --config`（開 fcitx5-configtool）、`setup-macos-input.sh` 同 `setup-keybindings.sh` 嘅 `-f, --force`（強制重寫 marker 區塊）、`setup-all.sh` 嘅 `-m, --menu`（互動選單）。
 
 ### 新增腳本 QA 檢查清單 ✅
 
@@ -185,8 +197,9 @@
 - [ ] **grep 安全性**: 所有包含 `\s` 的 grep 都必須使用 `-E` flag
 - [ ] **grep 安全性**: pattern 以 `-` 開頭（如 `-- BEGIN ...` marker）必須加 `--` 分隔符
 - [ ] **狀態檢查**: `-s` 參數能正確判斷是否已安裝
-- [ ] **移除功能**: `-u` 能完全清理所有新增的內容
+- [ ] **移除功能**: `-u` 能完全清理所有新增的內容；會改到既有檔案就用 `-i` 快照還原，原本冇嘅檔案要變返冇
 - [ ] **無重複**: 連續執行兩次不會在設定檔中產生重複行
+- [ ] **登記測試**: 喺 `test-idempotency.sh` 嘅 `SCRIPT_CONFIG_MAP` 加一行 `腳本|設定檔`（多個設定檔就一個一行）
 
 ---
 
@@ -244,12 +257,13 @@ main "$@"
 | R1 每個 `strip_block` 都要傳 END marker | `-u` 由 BEGIN 斬到檔尾，食咗用戶喺區塊之後加嘅設定 |
 | R2 唔准用 `create_backup` | 每次 `-i` 多一個 `.bak.<timestamp>`，而 `-u` 根本唔讀佢；備份只准 `~/.local/state/` 嘅 snapshot |
 | R3 可發現腳本都要登記 `SCRIPT_CONFIG_MAP` | 新腳本漏登記，冪等性測試照樣全綠，等於冇測 |
-| R4 `usage()` 要有 `-s, --status` 同 `-u, --uninstall` | `setup-all.sh` 靠 `-h` 輸出判斷狀態支援，漏咗會被靜靜雞跳過 |
+| R4 `usage()` 要有 `-i, --install`、`-u, --uninstall`、`-s, --status`、`-h, --help` | `setup-all.sh` 靠 `-h` 輸出判斷狀態支援，漏咗會被靜靜雞跳過 |
 | R5 唔准寫入 `keyboard-*` 輸入法 | english 做獨立輸入法多咗一個切換位；英文應經 rime `ascii_mode` 打 |
+| R6 `SCRIPT_CONFIG_MAP` 唔可以登記唔存在嘅腳本 | 腳本歸檔後漏刪登記，測試會搵唔到檔案或者靜靜雞測空氣 |
 
 ### 冪等性測試 (`test-idempotency.sh`)
 
-自動驗證所有腳本的冪等性，確保執行兩次後設定檔內容完全相同：
+自動驗證腳本嘅冪等性同還原：`-i` 跑兩次設定檔內容必須完全相同，然後 `-u` 必須將每個設定檔還原到跑測試前嘅狀態（原本唔存在就要變返唔存在）。
 
 ```bash
 # 測試所有腳本
@@ -265,7 +279,7 @@ main "$@"
 
 - **記錄函數**：`info()`, `warn()`, `error()`, `detail()`, `header()` - 自動套用顏色
 - **套件管理**：`check_package()`, `install_package()` - 自動偵測 paru/yay/sudo
-- **工具函數**：`confirm()`, `strip_block()`（v4 Lua marker 區塊移除；有 END marker 時只刪 BEGIN..END，冇就 fallback 斬到檔尾）
+- **工具函數**：`confirm()`, `strip_block()`（v4 Lua marker 區塊移除；有 END marker 時只刪 BEGIN..END，冇就 fallback 斬到檔尾）、狀態快照 `snapshot_original()` / `restore_original()` / `cleanup_state_dir()`（`~/.local/state/omarchy-custom-scripts/` 下嘅原狀備份）
 
 ## ⚠️ 已知陷阱與最佳實務 (Bash Pitfalls)
 

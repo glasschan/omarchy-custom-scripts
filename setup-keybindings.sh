@@ -18,9 +18,12 @@ SCRIPT_NAME="$(basename "$0")"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Load shared library
+# shellcheck disable=SC1091  # lint 會連同 lib/*.sh 一齊檢查；單檔跑時係假警報
 source "$SCRIPT_DIR/lib/common.sh"
 
 BINDINGS_LUA="$HOME/.config/hypr/bindings.lua"
+STATE_DIR="$HOME/.local/state/omarchy-custom-scripts/setup-keybindings"
+LUA_SNAPSHOT_NAME="bindings-lua"
 
 BEGIN_MARKER="-- BEGIN custom keybindings (setup-keybindings.sh)"
 END_MARKER="-- END custom keybindings (setup-keybindings.sh)"
@@ -67,6 +70,27 @@ is_installed() {
 
 # 移除區塊：共用 lib/common.sh 嘅 strip_block（檔案路徑 + marker 由參數傳入）
 
+# 寫入區塊後 reload，再檢查 configerrors（空輸出 = 無錯誤）
+reload_and_verify() {
+    command -v hyprctl >/dev/null 2>&1 || return 0
+
+    local errors
+    info "重新載入 Hyprland 設定..."
+    if hyprctl reload &>/dev/null; then
+        info "Hyprland 設定已重新載入"
+    else
+        warn "無法重新載入 Hyprland，請重新登入"
+    fi
+
+    errors=$(hyprctl configerrors 2>/dev/null)
+    if [[ -n "$errors" ]]; then
+        warn "Hyprland 設定有錯誤:"
+        printf '%s\n' "$errors" | sed 's/^/  /'
+    else
+        detail "hyprctl configerrors: 無錯誤"
+    fi
+}
+
 # 附加自訂快捷鍵區塊（OCR 部分視乎 OCR_READY 決定是否寫入）
 append_block() {
     cat >>"$BINDINGS_LUA" <<'EOF'
@@ -105,26 +129,44 @@ EOF
 setup_hypr_keybindings() {
     info "附加自訂快捷鍵到 ~/.config/hypr/bindings.lua..."
 
+    # -f/--force: 跳過存在性檢查，強制重寫區塊（用於腳本更新後重新套用）
+    local force=false
+    [[ "$1" == "-f" || "$1" == "--force" ]] && force=true
+
     if is_installed; then
         # 區塊已存在但缺 OCR 快捷鍵，而家語言包就緒：重寫本區塊補上
         if (( OCR_READY )) && ! grep -qF -- "$OCR_BIND_MARKER" "$BINDINGS_LUA"; then
             info "OCR 語言包已就緒，補上 OCR 快捷鍵"
+            snapshot_original "$STATE_DIR" "$BINDINGS_LUA" "$LUA_SNAPSHOT_NAME"
             strip_block "$BINDINGS_LUA" "$BEGIN_MARKER" "$END_MARKER" || \
                 warn "找不到結束標記，已刪至檔尾；請檢查 $BINDINGS_LUA"
             append_block
             info "快捷鍵已附加至 $BINDINGS_LUA"
-            info "Hyprland 會自動重新載入設定"
+            reload_and_verify
             return
         fi
-        info "自訂快捷鍵已存在，無需重複新增"
+
+        if $force; then
+            info "強制重寫自訂快捷鍵區塊..."
+            snapshot_original "$STATE_DIR" "$BINDINGS_LUA" "$LUA_SNAPSHOT_NAME"
+            strip_block "$BINDINGS_LUA" "$BEGIN_MARKER" "$END_MARKER" || \
+                warn "找不到結束標記，已刪至檔尾；請檢查 $BINDINGS_LUA"
+            append_block
+            info "快捷鍵已重寫至 $BINDINGS_LUA"
+            reload_and_verify
+            return
+        fi
+
+        info "自訂快捷鍵已存在，無需重複新增（-f 可強制重寫）"
         return
     fi
 
     mkdir -p "$(dirname "$BINDINGS_LUA")"
+    snapshot_original "$STATE_DIR" "$BINDINGS_LUA" "$LUA_SNAPSHOT_NAME"
     append_block
 
     info "快捷鍵已附加至 $BINDINGS_LUA"
-    info "Hyprland 會自動重新載入設定"
+    reload_and_verify
 }
 
 # 還原設定
@@ -133,16 +175,26 @@ uninstall() {
 
     if [ ! -f "$BINDINGS_LUA" ]; then
         warn "找不到 $BINDINGS_LUA"
+        cleanup_state_dir "$STATE_DIR"
         return 0
     fi
 
     if is_installed; then
         strip_block "$BINDINGS_LUA" "$BEGIN_MARKER" "$END_MARKER" || \
             warn "找不到結束標記，已刪至檔尾；請檢查 $BINDINGS_LUA"
-        info "已從 $BINDINGS_LUA 移除自訂快捷鍵（其餘內容保留）"
+        # 只有原本就冇呢個檔（.absent 快照）才用 restore_original 刪返個空殼；
+        # 原本已存在（真快照）就唔可以複製返舊內容，否則會蓋掉 -i 之後嘅用戶修改。
+        if [[ -f "$STATE_DIR/$LUA_SNAPSHOT_NAME.absent" ]]; then
+            restore_original "$STATE_DIR" "$BINDINGS_LUA" "$LUA_SNAPSHOT_NAME"
+            info "已移除 $BINDINGS_LUA（原本不存在，不留空殼）"
+        else
+            info "已從 $BINDINGS_LUA 移除自訂快捷鍵（其餘內容保留）"
+        fi
+        reload_and_verify
     else
         info "沒有找到已加入的自訂快捷鍵，跳過"
     fi
+    cleanup_state_dir "$STATE_DIR"
 
     echo
     info "還原完成！"
@@ -180,6 +232,7 @@ usage() {
     echo ""
     echo "Options:"
     echo "  -i, --install     安裝設定 (預設)"
+    echo "  -f, --force       強制重寫自訂快捷鍵區塊（用於更新後重新套用）"
     echo "  -u, --uninstall   還原設定"
     echo "  -s, --status      顯示目前狀態"
     echo "  -h, --help        顯示此說明"
@@ -196,7 +249,7 @@ install() {
 
     check_dependencies
     ensure_ocr_lang
-    setup_hypr_keybindings
+    setup_hypr_keybindings "${1:-}"
 
     echo
     info "=============================="
@@ -232,6 +285,9 @@ main() {
             ;;
         -h | --help)
             usage
+            ;;
+        -f | --force)
+            install --force
             ;;
         -i | --install | "")
             install

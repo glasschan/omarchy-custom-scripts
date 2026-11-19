@@ -183,39 +183,74 @@ show_menu() {
 # Actions
 # ========================================
 
-# Execute a single script
+# Execute a single script and return its exit status unchanged, so callers can
+# decide whether a failure is fatal (install_all) or just reported (menu).
 run_script() {
     local script="$1"
     local mode="${2:-}"
 
     if [[ ! -f "$SCRIPT_DIR/$script" ]]; then
-        error "找不到 script: $script"
+        warn "找不到 script: $script"
+        return 1
     fi
 
     info "執行 $script..."
     bash "$SCRIPT_DIR/$script" "$mode"
 }
 
-# Install all scripts
+# Report the scripts that failed, then exit non-zero when any did. The success
+# header is printed only for a clean run, so a broken script can never masquerade
+# as a completed install. Interactive mode passes "keep-running" so a failed
+# run-all does not tear down the menu loop.
+report_run_result() {
+    local action="$1" success_header="$2" on_failure="$3"
+    shift 3
+    local failed=("$@")
+
+    echo ""
+    if (( ${#failed[@]} > 0 )); then
+        header "${#failed[@]} 個腳本失敗：${failed[*]}"
+        echo ""
+        if [[ "$on_failure" == "keep-running" ]]; then
+            echo "其餘設定已繼續處理；請檢查上述錯誤輸出。"
+        else
+            echo "請檢查上述錯誤輸出，修正後重新執行剩餘設定。"
+            exit 1
+        fi
+        return 1
+    fi
+
+    header "$success_header"
+    echo ""
+    if [[ "$action" == "install" ]]; then
+        echo "請重新登入以確保所有設定生效。"
+    fi
+    return 0
+}
+
+# Install all scripts. Second argument is "keep-running" when called from the
+# interactive menu; the default (batch mode) exits non-zero on any failure.
 install_all() {
+    local on_failure="${1:-exit}"
     header "安裝所有設定"
 
     local script first=true
+    local failed=()
 
     for script in "${ALL_SCRIPTS[@]}"; do
         $first || echo ""
         first=false
-        run_script "$script" "-i"
+        if ! run_script "$script" "-i"; then
+            failed+=("$script")
+        fi
     done
 
-    echo ""
-    header "所有設定安裝完成！"
-    echo ""
-    echo "請重新登入以確保所有設定生效。"
+    report_run_result "install" "所有設定安裝完成！" "$on_failure" "${failed[@]}"
 }
 
 # Uninstall all scripts
 uninstall_all() {
+    local on_failure="${1:-exit}"
     header "還原所有設定"
 
     if ! confirm "確定要還原所有設定嗎？"; then
@@ -224,15 +259,17 @@ uninstall_all() {
     fi
 
     local script first=true
+    local failed=()
 
     for script in "${ALL_SCRIPTS[@]}"; do
         $first || echo ""
         first=false
-        run_script "$script" "-u"
+        if ! run_script "$script" "-u"; then
+            failed+=("$script")
+        fi
     done
 
-    echo ""
-    header "所有設定已還原！"
+    report_run_result "uninstall" "所有設定已還原！" "$on_failure" "${failed[@]}"
 }
 
 # Probe whether a script actually supports a status mode: run its usage
@@ -290,11 +327,11 @@ interactive_mode() {
                 exit 0
                 ;;
             "$global_start")
-                install_all
+                install_all "keep-running"
                 read -rp "按 Enter 繼續..."
                 ;;
             $((global_start + 1)))
-                uninstall_all
+                uninstall_all "keep-running"
                 read -rp "按 Enter 繼續..."
                 ;;
             $((global_start + 2)))

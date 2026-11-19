@@ -11,6 +11,7 @@ SCRIPT_NAME="$(basename "$0")"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Load shared library
+# shellcheck disable=SC1091  # 單檔檢查時見唔到 ./lib/common.sh；lint.sh 會連埋 lib/*.sh 一齊掃
 source "$SCRIPT_DIR/lib/common.sh"
 
 RIME_DIR="$HOME/.local/share/fcitx5/rime"
@@ -19,6 +20,9 @@ FCITX5_CONFIG="$HOME/.config/fcitx5/config"
 # 安裝時記錄 profile/config 原狀嘅快照目錄（lib/common.sh snapshot_original 系列
 # 據此還原；-u 還原後會移除）
 STATE_DIR="$HOME/.local/state/omarchy-custom-scripts/setup-input"
+# setup_rime_scj 只記錄「安裝前唔存在、由 -i 複製入去」嘅 yaml 檔名（append-only）；
+# remove_rime_scj 只會按呢份記錄移除，唔會掂 scj6.userdb/build/sync 等用戶資料
+RIME_FILES_RECORD="$STATE_DIR/installed-rime-files"
 
 # 檢查 rime-scj 是否安裝
 check_rime_scj() {
@@ -101,6 +105,19 @@ setup_rime_scj() {
     temp_dir=$(mktemp -d)
     git clone --depth 1 https://github.com/rime/rime-scj.git "$temp_dir"
 
+    # 記錄每個安裝前唔存在嘅 yaml（append-only，重複跑唔會再記錄）
+    local src base
+    for src in "$temp_dir"/*.yaml; do
+        [[ -f "$src" ]] || continue
+        base=$(basename "$src")
+        [[ -e "$RIME_DIR/$base" ]] && continue
+        if [[ -f "$RIME_FILES_RECORD" ]] && grep -qxF -- "$base" "$RIME_FILES_RECORD"; then
+            continue
+        fi
+        mkdir -p "$STATE_DIR"
+        printf '%s\n' "$base" >> "$RIME_FILES_RECORD"
+    done
+
     cp "$temp_dir"/*.yaml "$RIME_DIR/"
     rm -rf "$temp_dir"
 
@@ -111,10 +128,26 @@ setup_rime_scj() {
     info "rime-scj 安裝完成"
 }
 
-# 移除 rime-scj
+# 移除 rime-scj（只移除 -i 新增嘅 yaml，保留 userdb/dict/build/sync 等用戶資料）
 remove_rime_scj() {
     info "移除 rime-scj..."
-    rm -f "$RIME_DIR"/scj6.*
+
+    if [[ ! -f "$RIME_FILES_RECORD" ]]; then
+        warn "冇 rime-scj 安裝記錄（$RIME_FILES_RECORD），唔會移除任何檔案"
+        return 0
+    fi
+
+    local name
+    while IFS= read -r name; do
+        [[ -z "$name" ]] && continue
+        # 記錄只應有單純檔名；有路徑就跳過，避免 rm 走出 rime 目錄
+        [[ "$name" == */* ]] && continue
+        if [[ -f "$RIME_DIR/$name" ]]; then
+            rm -f -- "$RIME_DIR/$name"
+            detail "已移除 $RIME_DIR/$name"
+        fi
+    done < "$RIME_FILES_RECORD"
+
     info "rime-scj 已移除"
 }
 
@@ -130,6 +163,9 @@ setup_scj6_custom() {
     info "建立 scj6.custom.yaml..."
     mkdir -p "$RIME_DIR"
 
+    # 覆寫前先記錄用戶原有版本（唔存在就留 .absent），-u 先可以原狀還原
+    snapshot_original "$STATE_DIR" "$RIME_DIR/scj6.custom.yaml" scj6-custom
+
     cat > "$RIME_DIR/scj6.custom.yaml" << 'EOF'
 patch:
   switches:
@@ -144,11 +180,11 @@ EOF
     info "scj6.custom.yaml 建立完成"
 }
 
-# 移除 scj6.custom.yaml
+# 還原 scj6.custom.yaml（-i 有快照就還原原狀；原本唔存在就刪走）
 remove_scj6_custom() {
-    info "移除 scj6.custom.yaml..."
-    rm -f "$RIME_DIR/scj6.custom.yaml"
-    info "scj6.custom.yaml 已移除"
+    info "還原 scj6.custom.yaml..."
+    restore_original "$STATE_DIR" "$RIME_DIR/scj6.custom.yaml" scj6-custom
+    info "scj6.custom.yaml 已還原"
 }
 
 # 設定 default.custom.yaml
@@ -162,6 +198,9 @@ setup_default_custom() {
 
     info "建立 default.custom.yaml..."
     mkdir -p "$RIME_DIR"
+
+    # 覆寫前先記錄用戶原有版本（唔存在就留 .absent），-u 先可以原狀還原
+    snapshot_original "$STATE_DIR" "$RIME_DIR/default.custom.yaml" default-custom
 
     cat > "$RIME_DIR/default.custom.yaml" << 'EOF'
 patch:
@@ -190,11 +229,11 @@ EOF
     info "default.custom.yaml 建立完成"
 }
 
-# 移除 default.custom.yaml
+# 還原 default.custom.yaml（-i 有快照就還原原狀；原本唔存在就刪走）
 remove_default_custom() {
-    info "移除 default.custom.yaml..."
-    rm -f "$RIME_DIR/default.custom.yaml"
-    info "default.custom.yaml 已移除"
+    info "還原 default.custom.yaml..."
+    restore_original "$STATE_DIR" "$RIME_DIR/default.custom.yaml" default-custom
+    info "default.custom.yaml 已還原"
 }
 
 # 列出 profile 入面 [Groups/0/Items/*] 嘅輸入法名（忽略 group 名）
@@ -392,7 +431,7 @@ show_status() {
     fi
 
     if [[ -d "$STATE_DIR" ]]; then
-        echo -e "  ${YELLOW}!${NC} 有安裝時快照待還原（profile/config 原狀），執行 -u 還原"
+        echo -e "  ${YELLOW}!${NC} 有安裝時快照／安裝記錄待還原，執行 -u 還原"
     fi
 }
 
@@ -472,14 +511,16 @@ install() {
 uninstall() {
     info "開始還原 fcitx5-rime 設定..."
 
-    # 先還原安裝時改過嘅 fcitx5 profile/config（依安裝時快照）
+    # 先還原安裝時改過嘅 fcitx5 profile/config，以及 rime custom yaml（依安裝時快照）
     restore_original "$STATE_DIR" "$FCITX5_CONFIG" config
     restore_original "$STATE_DIR" "$FCITX5_PROFILE" profile
-    cleanup_state_dir "$STATE_DIR"
 
     remove_scj6_custom
     remove_default_custom
     remove_rime_scj
+
+    # 最後才刪快照目錄，否則上面嘅還原／安裝記錄已經冇咗
+    cleanup_state_dir "$STATE_DIR"
 
     info "fcitx5-rime 設定已還原！"
     info "注意: fcitx5 之後可能自行改寫 profile/config，屬正常，不影響本次還原結果"

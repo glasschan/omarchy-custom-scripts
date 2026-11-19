@@ -38,13 +38,21 @@ jobs:
       - name: stub 特權／系統二進位
         run: |
           set -euo pipefail
-          for b in sudo pacman paru yay hyprctl systemctl fcitx5 killall pgrep wl-copy notify-send; do
+          for b in sudo pacman paru yay hyprctl systemctl fcitx5 fcitx5-remote dbus-send \
+                   killall pgrep wl-copy notify-send \
+                   fc-cache fc-match gsettings; do
             printf '#!/bin/bash\nexit 0\n' | sudo tee "/usr/local/bin/$b" >/dev/null
             sudo chmod +x "/usr/local/bin/$b"
           done
+          # fc-list 假裝兩個字體已安裝：唔會觸發下載，fontconfig 路徑仍然被覆蓋
+          printf '#!/bin/bash\nprintf "OPPO Sans 4.0\\nMiSans VF\\n"\n' | sudo tee /usr/local/bin/fc-list >/dev/null
+          sudo chmod +x /usr/local/bin/fc-list
           # tesseract 假裝 chi_tra 已安裝，令 OCR 快捷鍵路徑亦有覆蓋
           printf '#!/bin/bash\nprintf "List of available languages:\\nchi_tra\\n"\n' | sudo tee /usr/local/bin/tesseract >/dev/null
           sudo chmod +x /usr/local/bin/tesseract
+          # curl 失敗而非 no-op：確保測試永遠唔會連網下載字體，亦唔會攞到空 zip
+          printf '#!/bin/bash\nexit 6\n' | sudo tee /usr/local/bin/curl >/dev/null
+          sudo chmod +x /usr/local/bin/curl
 
       - name: 冪等性全跑
         run: |
